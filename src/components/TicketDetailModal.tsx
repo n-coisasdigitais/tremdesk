@@ -7,6 +7,8 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { TipTapEditor } from './TipTapEditor';
 import { TicketAttachments } from './TicketAttachments';
+import { TicketChecklist } from './TicketChecklist';
+import { TicketLinks } from './TicketLinks';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -355,6 +357,16 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
               <TipTapEditor content={ticket.description_json} editable={false} />
             </div>
           )}
+
+          {/* Checklist */}
+          <TicketChecklist ticketId={ticket.id} />
+
+          <Separator />
+
+          {/* Linked Demands */}
+          <TicketLinks ticketId={ticket.id} companyId={ticket.company_id} />
+
+          <Separator />
 
           {/* Attachments */}
           <TicketAttachments ticketId={ticket.id} companyId={ticket.company_id} />
