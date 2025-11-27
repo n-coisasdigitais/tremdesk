@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Upload, File, Trash2, ExternalLink, Loader2, FolderOpen } from 'lucide-react';
+import { Upload, File, Trash2, ExternalLink, Loader2, FolderOpen, FileImage, FileText, FileArchive } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -33,10 +33,26 @@ export const TicketAttachments = ({ ticketId, companyId }: TicketAttachmentsProp
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [folderUrl, setFolderUrl] = useState<string | null>(null);
+  const [googleDriveConfigured, setGoogleDriveConfigured] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetchAttachments();
+    checkGoogleDriveConfig();
   }, [ticketId]);
+
+  const checkGoogleDriveConfig = async () => {
+    try {
+      const { data } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'google_service_account_email')
+        .maybeSingle();
+      
+      setGoogleDriveConfigured(!!data?.value);
+    } catch {
+      setGoogleDriveConfigured(false);
+    }
+  };
 
   const fetchAttachments = async () => {
     setLoading(true);
@@ -87,66 +103,102 @@ export const TicketAttachments = ({ ticketId, companyId }: TicketAttachmentsProp
   };
 
   const uploadFile = async (file: File) => {
-    // Convert file to base64
-    const base64 = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        // Remove the data URL prefix (e.g., "data:application/pdf;base64,")
-        const base64Data = result.split(',')[1];
-        resolve(base64Data);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+    // Try Google Drive first if configured
+    if (googleDriveConfigured) {
+      try {
+        const base64 = await fileToBase64(file);
+        const { data, error } = await supabase.functions.invoke('google-drive-folders', {
+          body: {
+            action: 'upload_file',
+            demand_id: ticketId,
+            company_id: companyId,
+            file_name: file.name,
+            file_type: file.type,
+            file_content: base64,
+          },
+        });
 
-    // Upload to Google Drive via edge function
-    const { data, error } = await supabase.functions.invoke('google-drive-folders', {
-      body: {
-        action: 'upload_file',
-        demand_id: ticketId,
-        company_id: companyId,
-        file_name: file.name,
-        file_type: file.type,
-        file_content: base64,
-      },
-    });
+        if (!error && !data?.error) {
+          // Save attachment record with Google Drive info
+          const { error: insertError } = await supabase.from('ticket_attachments').insert({
+            ticket_id: ticketId,
+            file_name: file.name,
+            file_type: file.type,
+            file_url: data.file_url,
+            google_drive_file_id: data.file_id,
+            google_drive_folder_id: data.folder_id,
+            uploaded_by: user?.id,
+          });
 
-    if (error) {
-      throw new Error('Erro ao conectar com Google Drive. Verifique se a integração está configurada nas Configurações.');
-    }
-    if (data?.error) {
-      // Check if it's a configuration error and provide a helpful message
-      if (data.error.includes('não configurado') || data.error.includes('Configure')) {
-        throw new Error('Google Drive não está configurado. Vá em Configurações → Integrações para configurar a conta de serviço do Google Drive.');
+          if (insertError) throw insertError;
+
+          if (data.folder_url) {
+            setFolderUrl(data.folder_url);
+          }
+          return; // Success with Google Drive
+        }
+      } catch (err) {
+        console.log('Google Drive upload failed, falling back to Supabase Storage');
       }
-      throw new Error(data.error);
     }
+
+    // Fallback to Supabase Storage
+    await uploadToSupabaseStorage(file);
+  };
+
+  const uploadToSupabaseStorage = async (file: File) => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${ticketId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('attachments')
+      .upload(fileName, file);
+
+    if (uploadError) throw uploadError;
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('attachments')
+      .getPublicUrl(fileName);
 
     // Save attachment record
     const { error: insertError } = await supabase.from('ticket_attachments').insert({
       ticket_id: ticketId,
       file_name: file.name,
       file_type: file.type,
-      file_url: data.file_url,
-      google_drive_file_id: data.file_id,
-      google_drive_folder_id: data.folder_id,
+      file_url: urlData.publicUrl,
       uploaded_by: user?.id,
     });
 
     if (insertError) throw insertError;
+  };
 
-    // Update folder URL if we got it
-    if (data.folder_url) {
-      setFolderUrl(data.folder_url);
-    }
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64Data = result.split(',')[1];
+        resolve(base64Data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleDelete = async (attachment: TicketAttachment) => {
     if (!confirm('Tem certeza que deseja excluir este arquivo?')) return;
 
     try {
-      // Delete from database (file remains in Google Drive)
+      // If it's a Supabase Storage file, delete from storage too
+      if (!attachment.google_drive_file_id && attachment.file_url.includes('supabase')) {
+        const path = attachment.file_url.split('/attachments/')[1];
+        if (path) {
+          await supabase.storage.from('attachments').remove([path]);
+        }
+      }
+
+      // Delete from database
       const { error } = await supabase
         .from('ticket_attachments')
         .delete()
@@ -165,8 +217,17 @@ export const TicketAttachments = ({ ticketId, companyId }: TicketAttachmentsProp
     }
   };
 
-  const getFileIcon = (fileType: string | null) => {
-    return <File className="h-4 w-4" />;
+  const getFileIcon = (fileType: string | null, fileName: string) => {
+    if (fileType?.startsWith('image/')) {
+      return <FileImage className="h-4 w-4 text-green-600" />;
+    }
+    if (fileType?.includes('pdf') || fileName.endsWith('.pdf')) {
+      return <FileText className="h-4 w-4 text-red-600" />;
+    }
+    if (fileType?.includes('zip') || fileType?.includes('rar') || fileName.match(/\.(zip|rar|7z)$/i)) {
+      return <FileArchive className="h-4 w-4 text-yellow-600" />;
+    }
+    return <File className="h-4 w-4 text-muted-foreground" />;
   };
 
   const canDelete = isAdmin || isTeamMember;
@@ -176,7 +237,7 @@ export const TicketAttachments = ({ ticketId, companyId }: TicketAttachmentsProp
       <div className="flex items-center justify-between">
         <h4 className="font-medium flex items-center gap-2">
           <Upload className="h-4 w-4" />
-          Arquivos
+          Arquivos ({attachments.length})
         </h4>
         <div className="flex gap-2">
           {folderUrl && (
@@ -219,7 +280,8 @@ export const TicketAttachments = ({ ticketId, companyId }: TicketAttachmentsProp
         </div>
       ) : attachments.length === 0 ? (
         <div className="text-sm text-muted-foreground text-center py-4 border border-dashed rounded-md">
-          Nenhum arquivo anexado. Clique em "Enviar Arquivo" para adicionar.
+          <p>Nenhum arquivo anexado.</p>
+          <p className="text-xs mt-1">Clique em "Enviar Arquivo" para adicionar documentos, imagens ou outros arquivos.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -228,12 +290,13 @@ export const TicketAttachments = ({ ticketId, companyId }: TicketAttachmentsProp
               key={attachment.id}
               className="flex items-center gap-3 p-2 border rounded-md bg-card hover:bg-accent/50 transition-colors"
             >
-              {getFileIcon(attachment.file_type)}
+              {getFileIcon(attachment.file_type, attachment.file_name)}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{attachment.file_name}</p>
                 <p className="text-xs text-muted-foreground">
                   {attachment.uploader?.full_name || 'Usuário'} • {' '}
                   {format(new Date(attachment.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  {attachment.google_drive_file_id && ' • Google Drive'}
                 </p>
               </div>
               <div className="flex items-center gap-1">
