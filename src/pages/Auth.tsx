@@ -111,11 +111,11 @@ export default function Auth() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-secondary/20 to-background p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-4">
-          <div className="flex justify-center">
+        <CardHeader className="space-y-2 pb-4">
+          <div className="flex flex-col items-center gap-3">
             <AnimatedLogo size="lg" />
           </div>
-          <CardDescription className="text-center">
+          <CardDescription className="text-center text-sm">
             O trem de gestão de demandas que funciona, uai!
           </CardDescription>
         </CardHeader>
