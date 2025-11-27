@@ -82,6 +82,24 @@ export const useTickets = () => {
         description: 'A demanda foi criada com sucesso.'
       });
 
+      // Create Google Drive folder in background (non-blocking)
+      if (data) {
+        supabase.functions.invoke('google-drive-folders', {
+          body: {
+            action: 'create_demand_folder',
+            demand_id: data.id,
+            demand_title: data.title,
+            company_id: data.company_id,
+          },
+        }).then(response => {
+          if (response.data?.folder_url) {
+            console.log('Google Drive folder created:', response.data.folder_url);
+          }
+        }).catch(err => {
+          console.log('Google Drive folder creation skipped or failed:', err.message);
+        });
+      }
+
       await fetchTickets();
       return { data, error: null };
     } catch (error: any) {
