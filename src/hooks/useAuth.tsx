@@ -74,6 +74,14 @@ export const useAuth = () => {
         }
       }
     });
+
+    // Auto-assign admin role for ola@ncoisas.digital
+    if (!error && data.user && email === 'ola@ncoisas.digital') {
+      await supabase.from('user_roles').insert({
+        user_id: data.user.id,
+        role: 'admin' as AppRole,
+      });
+    }
     
     return { data, error };
   };
