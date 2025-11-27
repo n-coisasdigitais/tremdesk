@@ -1,1 +1,10 @@
 project_id = "hdnoaihwlrwhoifyaspi"
+
+[functions.email-webhook]
+verify_jwt = false
+
+[functions.google-drive-folders]
+verify_jwt = true
+
+[functions.send-email]
+verify_jwt = true
