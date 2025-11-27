@@ -2,7 +2,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
   LayoutDashboard,
-  Train,
   BarChart3,
   Building2,
   Users,
@@ -58,9 +57,9 @@ export function AppSidebar() {
       <SidebarHeader className="border-b px-6 py-4">
         <button 
           onClick={() => navigate('/dashboard')}
-          className="flex items-center gap-2 font-bold text-lg"
+          className="flex items-center gap-3 font-bold text-lg group"
         >
-          <Train className="h-6 w-6 text-primary" />
+          <span className="text-2xl animate-train-chug group-hover:animate-train-chug">🚂</span>
           <span>Trem Desk</span>
         </button>
       </SidebarHeader>
