@@ -6,6 +6,8 @@ export type TicketPriority = 'baixa' | 'media' | 'alta' | 'urgente';
 
 export type TicketCategory = 'meta_ads' | 'google_ads' | 'linkedin_ads' | 'arte' | 'relatorio' | 'outro';
 
+export type TicketLinkType = 'related' | 'parent' | 'blocks' | 'blocked_by';
+
 export interface Profile {
   id: string;
   full_name: string;
@@ -28,6 +30,7 @@ export interface Company {
   logo_url?: string;
   leads_system_url?: string;
   assas_portal_url?: string;
+  google_drive_folder_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +70,28 @@ export interface TicketComment {
   created_at: string;
   updated_at: string;
   user?: Profile;
+}
+
+export interface TicketLink {
+  id: string;
+  source_ticket_id: string;
+  target_ticket_id: string;
+  link_type: TicketLinkType;
+  created_at: string;
+  created_by?: string;
+  source_ticket?: Ticket;
+  target_ticket?: Ticket;
+}
+
+export interface TicketChecklistItem {
+  id: string;
+  ticket_id: string;
+  content: string;
+  is_completed: boolean;
+  position: number;
+  completed_at?: string;
+  completed_by?: string;
+  created_at: string;
 }
 
 export interface Mention {

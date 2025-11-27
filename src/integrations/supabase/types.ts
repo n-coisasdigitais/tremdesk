@@ -60,6 +60,7 @@ export type Database = {
         Row: {
           assas_portal_url: string | null
           created_at: string
+          google_drive_folder_id: string | null
           id: string
           leads_system_url: string | null
           logo_url: string | null
@@ -69,6 +70,7 @@ export type Database = {
         Insert: {
           assas_portal_url?: string | null
           created_at?: string
+          google_drive_folder_id?: string | null
           id?: string
           leads_system_url?: string | null
           logo_url?: string | null
@@ -78,6 +80,7 @@ export type Database = {
         Update: {
           assas_portal_url?: string | null
           created_at?: string
+          google_drive_folder_id?: string | null
           id?: string
           leads_system_url?: string | null
           logo_url?: string | null
@@ -355,6 +358,8 @@ export type Database = {
           file_name: string
           file_type: string | null
           file_url: string
+          google_drive_file_id: string | null
+          google_drive_folder_id: string | null
           id: string
           ticket_id: string
           uploaded_by: string | null
@@ -364,6 +369,8 @@ export type Database = {
           file_name: string
           file_type?: string | null
           file_url: string
+          google_drive_file_id?: string | null
+          google_drive_folder_id?: string | null
           id?: string
           ticket_id: string
           uploaded_by?: string | null
@@ -373,6 +380,8 @@ export type Database = {
           file_name?: string
           file_type?: string | null
           file_url?: string
+          google_drive_file_id?: string | null
+          google_drive_folder_id?: string | null
           id?: string
           ticket_id?: string
           uploaded_by?: string | null
@@ -390,6 +399,54 @@ export type Database = {
             columns: ["uploaded_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_checklist_items: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          content: string
+          created_at: string
+          id: string
+          is_completed: boolean
+          position: number
+          ticket_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          position?: number
+          ticket_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          position?: number
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_checklist_items_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_checklist_items_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
             referencedColumns: ["id"]
           },
         ]
@@ -442,6 +499,55 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_links: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          link_type: string
+          source_ticket_id: string
+          target_ticket_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          link_type?: string
+          source_ticket_id: string
+          target_ticket_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          link_type?: string
+          source_ticket_id?: string
+          target_ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_links_source_ticket_id_fkey"
+            columns: ["source_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_links_target_ticket_id_fkey"
+            columns: ["target_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
             referencedColumns: ["id"]
           },
         ]
