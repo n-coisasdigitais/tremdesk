@@ -2,13 +2,14 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
   LayoutDashboard,
-  KanbanSquare,
+  Train,
   BarChart3,
   Building2,
   Users,
   UserCog,
   Settings,
   ChevronRight,
+  KanbanSquare,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -59,8 +60,8 @@ export function AppSidebar() {
           onClick={() => navigate('/dashboard')}
           className="flex items-center gap-2 font-bold text-lg"
         >
-          <KanbanSquare className="h-6 w-6 text-primary" />
-          <span>Sistema de Demandas</span>
+          <Train className="h-6 w-6 text-primary" />
+          <span>Trem Desk</span>
         </button>
       </SidebarHeader>
 

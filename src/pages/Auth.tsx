@@ -111,9 +111,9 @@ export default function Auth() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-secondary/20 to-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Sistema de Demandas</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">Trem Desk 🚂</CardTitle>
           <CardDescription className="text-center">
-            Gerencie suas demandas de forma eficiente
+            O trem de gestão de demandas que funciona, uai!
           </CardDescription>
         </CardHeader>
         <CardContent>
