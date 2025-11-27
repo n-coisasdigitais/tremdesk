@@ -7,6 +7,10 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Kanban from "./pages/Kanban";
 import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
+import Users from "./pages/admin/Users";
+import Companies from "./pages/admin/Companies";
+import Teams from "./pages/admin/Teams";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -24,6 +28,10 @@ const App = () => (
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/kanban" element={<ProtectedRoute><Kanban /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/admin/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+          <Route path="/admin/companies" element={<ProtectedRoute><Companies /></ProtectedRoute>} />
+          <Route path="/admin/teams" element={<ProtectedRoute><Teams /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

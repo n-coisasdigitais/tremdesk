@@ -10,6 +10,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -21,6 +25,8 @@ import {
   LogOut,
   Bell,
   BarChart3,
+  Shield,
+  UserCog,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -143,8 +149,7 @@ export const Layout = ({ children }: LayoutProps) => {
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
     { path: '/kanban', label: 'Demandas', icon: KanbanSquare, show: true },
     { path: '/reports', label: 'Relatórios', icon: BarChart3, show: true },
-    { path: '/teams', label: 'Times', icon: Users, show: isAdmin },
-    { path: '/companies', label: 'Empresas', icon: Building2, show: isAdmin || isTeamMember },
+    { path: '/admin/companies', label: 'Empresas', icon: Building2, show: isAdmin || isTeamMember },
   ];
 
   return (
@@ -260,6 +265,30 @@ export const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                {isAdmin && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <Shield className="mr-2 h-4 w-4" />
+                      <span>Administração</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent>
+                        <DropdownMenuItem onClick={() => navigate('/admin/users')}>
+                          <UserCog className="mr-2 h-4 w-4" />
+                          <span>Usuários</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate('/admin/companies')}>
+                          <Building2 className="mr-2 h-4 w-4" />
+                          <span>Empresas</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate('/admin/teams')}>
+                          <Users className="mr-2 h-4 w-4" />
+                          <span>Times</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                )}
                 <DropdownMenuItem onClick={() => navigate('/settings')}>
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Configurações</span>
