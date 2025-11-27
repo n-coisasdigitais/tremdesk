@@ -8,8 +8,9 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  to: string | string[];
-  subject: string;
+  to?: string | string[];
+  recipient_user_ids?: string[];
+  subject?: string;
   template: "ticket_created" | "ticket_updated" | "ticket_approved" | "ticket_rejected" | "mention" | "custom";
   data?: {
     ticket_id?: string;
@@ -245,16 +246,41 @@ const handler = async (req: Request): Promise<Response> => {
     const resend = new Resend(resendApiKey);
     const body: EmailRequest = await req.json();
 
+    // Resolve emails from user IDs if provided
+    let toEmails: string[] = [];
+
+    if (body.recipient_user_ids && body.recipient_user_ids.length > 0) {
+      // Fetch emails from auth.users using service role
+      const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
+      
+      if (authError) {
+        console.error("Error fetching users:", authError);
+      } else if (authData?.users) {
+        toEmails = authData.users
+          .filter(u => body.recipient_user_ids!.includes(u.id) && u.email)
+          .map(u => u.email!)
+          .filter(Boolean);
+      }
+    } else if (body.to) {
+      toEmails = Array.isArray(body.to) ? body.to.filter(Boolean) as string[] : [body.to].filter(Boolean) as string[];
+    }
+
+    if (toEmails.length === 0) {
+      console.log("No valid recipients found");
+      return new Response(
+        JSON.stringify({ warning: "No valid recipients found", skipped: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     console.log("Sending email:", {
-      to: body.to,
+      to: toEmails,
       template: body.template,
       subject: body.subject,
     });
 
     const html = getEmailHtml(body.template, body.data);
     const subject = body.subject || getSubject(body.template, body.data);
-
-    const toEmails = Array.isArray(body.to) ? body.to : [body.to];
 
     const { data, error } = await resend.emails.send({
       from: `${fromName} <${fromEmail}>`,
