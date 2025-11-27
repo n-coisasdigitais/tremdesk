@@ -80,7 +80,7 @@ interface Company {
 }
 
 const Teams = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, loading: authLoading } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -384,6 +384,16 @@ const Teams = () => {
   const filteredTeams = teams.filter(team =>
     team.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center text-muted-foreground">Carregando...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
