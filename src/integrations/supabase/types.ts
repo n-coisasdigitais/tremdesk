@@ -14,6 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          active: boolean
+          content: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          notify_bell: boolean
+          notify_email: boolean
+          notify_page: boolean
+          priority: string
+          target_company_id: string | null
+          target_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          content: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          notify_bell?: boolean
+          notify_email?: boolean
+          notify_page?: boolean
+          priority?: string
+          target_company_id?: string | null
+          target_type?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          notify_bell?: boolean
+          notify_email?: boolean
+          notify_page?: boolean
+          priority?: string
+          target_company_id?: string | null
+          target_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "announcements_target_company_id_fkey"
+            columns: ["target_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approvals: {
         Row: {
           approved_by: string | null

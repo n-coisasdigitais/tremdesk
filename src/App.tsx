@@ -11,6 +11,7 @@ import Settings from "./pages/Settings";
 import Users from "./pages/admin/Users";
 import Companies from "./pages/admin/Companies";
 import Teams from "./pages/admin/Teams";
+import Announcements from "./pages/admin/Announcements";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/admin/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
           <Route path="/admin/companies" element={<ProtectedRoute><Companies /></ProtectedRoute>} />
           <Route path="/admin/teams" element={<ProtectedRoute><Teams /></ProtectedRoute>} />
+          <Route path="/admin/announcements" element={<ProtectedRoute><Announcements /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

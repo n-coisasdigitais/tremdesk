@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { User, Upload, HardDrive, Mail, Settings2, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { User, Upload, HardDrive, Mail, Settings2, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
 
 interface SystemSetting {
   id: string;
@@ -38,6 +38,12 @@ const Settings = () => {
   const [resendApiKey, setResendApiKey] = useState('');
   const [resendFromEmail, setResendFromEmail] = useState('');
   const [resendFromName, setResendFromName] = useState('');
+  
+  // External links
+  const [leadsSystemUrl, setLeadsSystemUrl] = useState('');
+  const [leadsSystemName, setLeadsSystemName] = useState('');
+  const [financeSystemUrl, setFinanceSystemUrl] = useState('');
+  const [financeSystemName, setFinanceSystemName] = useState('');
   
   // Show/hide password fields
   const [showServiceAccountKey, setShowServiceAccountKey] = useState(false);
@@ -86,6 +92,18 @@ const Settings = () => {
             break;
           case 'resend_from_name':
             setResendFromName(setting.value || '');
+            break;
+          case 'system_link_leads_url':
+            setLeadsSystemUrl(setting.value || '');
+            break;
+          case 'system_link_leads_name':
+            setLeadsSystemName(setting.value || '');
+            break;
+          case 'system_link_finance_url':
+            setFinanceSystemUrl(setting.value || '');
+            break;
+          case 'system_link_finance_name':
+            setFinanceSystemName(setting.value || '');
             break;
         }
       });
@@ -238,8 +256,36 @@ const Settings = () => {
     }
   };
 
+  const handleSaveExternalLinks = async () => {
+    setSavingSettings(true);
+    try {
+      await Promise.all([
+        saveSetting('system_link_leads_url', leadsSystemUrl),
+        saveSetting('system_link_leads_name', leadsSystemName),
+        saveSetting('system_link_finance_url', financeSystemUrl),
+        saveSetting('system_link_finance_name', financeSystemName),
+      ]);
+
+      toast({
+        title: 'Links salvos',
+        description: 'Os links externos foram salvos com sucesso.',
+      });
+      
+      fetchSettings();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao salvar links',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   const isGoogleDriveConfigured = googleServiceAccountEmail && googleServiceAccountKey && googleDriveRootFolderId;
   const isResendConfigured = resendApiKey && resendFromEmail;
+  const isExternalLinksConfigured = leadsSystemUrl || financeSystemUrl;
 
   return (
     <Layout>
@@ -588,6 +634,94 @@ const Settings = () => {
                           </>
                         ) : (
                           'Salvar configurações do Resend'
+                        )}
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  {/* External Links Card */}
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2">
+                          <ExternalLink className="h-5 w-5" />
+                          Links Externos
+                        </CardTitle>
+                        {isExternalLinksConfigured ? (
+                          <span className="flex items-center gap-1 text-sm text-green-600">
+                            <CheckCircle className="h-4 w-4" />
+                            Configurado
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-sm text-amber-600">
+                            <AlertCircle className="h-4 w-4" />
+                            Pendente
+                          </span>
+                        )}
+                      </div>
+                      <CardDescription>
+                        Configure os links para sistemas externos exibidos no Dashboard.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-4 border-b pb-4">
+                        <h4 className="text-sm font-medium">Dashboard de Campanhas</h4>
+                        <div className="space-y-2">
+                          <Label htmlFor="leadsSystemUrl">URL do Sistema</Label>
+                          <Input
+                            id="leadsSystemUrl"
+                            type="url"
+                            value={leadsSystemUrl}
+                            onChange={(e) => setLeadsSystemUrl(e.target.value)}
+                            placeholder="https://..."
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="leadsSystemName">Nome de Exibição</Label>
+                          <Input
+                            id="leadsSystemName"
+                            value={leadsSystemName}
+                            onChange={(e) => setLeadsSystemName(e.target.value)}
+                            placeholder="Dashboard de Campanhas"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-medium">Portal Financeiro</h4>
+                        <div className="space-y-2">
+                          <Label htmlFor="financeSystemUrl">URL do Sistema</Label>
+                          <Input
+                            id="financeSystemUrl"
+                            type="url"
+                            value={financeSystemUrl}
+                            onChange={(e) => setFinanceSystemUrl(e.target.value)}
+                            placeholder="https://..."
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="financeSystemName">Nome de Exibição</Label>
+                          <Input
+                            id="financeSystemName"
+                            value={financeSystemName}
+                            onChange={(e) => setFinanceSystemName(e.target.value)}
+                            placeholder="Portal Financeiro"
+                          />
+                        </div>
+                      </div>
+
+                      <Button 
+                        onClick={handleSaveExternalLinks} 
+                        disabled={savingSettings}
+                        className="w-full"
+                      >
+                        {savingSettings ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Salvando...
+                          </>
+                        ) : (
+                          'Salvar Links Externos'
                         )}
                       </Button>
                     </CardContent>
