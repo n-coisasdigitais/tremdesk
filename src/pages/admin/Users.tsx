@@ -56,7 +56,7 @@ const roleLabels: Record<string, string> = {
 };
 
 const Users = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -208,6 +208,16 @@ const Users = () => {
   const filteredUsers = users.filter(user =>
     user.full_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center text-muted-foreground">Carregando...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
