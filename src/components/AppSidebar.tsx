@@ -9,6 +9,7 @@ import {
   Settings,
   ChevronRight,
   KanbanSquare,
+  Megaphone,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -47,6 +48,7 @@ export function AppSidebar() {
     { path: '/admin/users', label: 'Usuários', icon: UserCog },
     { path: '/admin/companies', label: 'Empresas', icon: Building2 },
     { path: '/admin/teams', label: 'Times', icon: Users },
+    { path: '/admin/announcements', label: 'Avisos', icon: Megaphone },
   ];
 
   const isActive = (path: string) => location.pathname === path;

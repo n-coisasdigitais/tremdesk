@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,9 +12,17 @@ import {
   AlertCircle,
   TrendingUp,
   Plus,
-  ExternalLink
+  ExternalLink,
+  Megaphone,
+  AlertTriangle,
+  Info,
+  BarChart3,
+  CreditCard,
+  X
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface DashboardStats {
   total: number;
@@ -24,15 +32,43 @@ interface DashboardStats {
   concluido: number;
 }
 
+interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  priority: string;
+  created_at: string;
+  notify_page: boolean;
+}
+
+interface SystemLink {
+  id: string;
+  name: string;
+  url: string;
+  icon: 'leads' | 'finance';
+  description: string;
+}
+
 export default function Dashboard() {
   const { isAdmin, isTeamMember, roles } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState<any>(null);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [dismissedAnnouncements, setDismissedAnnouncements] = useState<string[]>([]);
+  const [systemLinks, setSystemLinks] = useState<SystemLink[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchAnnouncements();
+    fetchSystemLinks();
+    
+    // Load dismissed announcements from localStorage
+    const dismissed = localStorage.getItem('dismissedAnnouncements');
+    if (dismissed) {
+      setDismissedAnnouncements(JSON.parse(dismissed));
+    }
   }, [roles]);
 
   const fetchDashboardData = async () => {
@@ -76,6 +112,75 @@ export default function Dashboard() {
     }
   };
 
+  const fetchAnnouncements = async () => {
+    try {
+      const { data } = await supabase
+        .from('announcements')
+        .select('*')
+        .eq('active', true)
+        .eq('notify_page', true)
+        .or('expires_at.is.null,expires_at.gt.now()')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (data) {
+        setAnnouncements(data);
+      }
+    } catch (error) {
+      console.error('Error fetching announcements:', error);
+    }
+  };
+
+  const fetchSystemLinks = async () => {
+    try {
+      const { data } = await supabase
+        .from('system_settings')
+        .select('key, value')
+        .in('key', ['system_link_leads_url', 'system_link_leads_name', 'system_link_finance_url', 'system_link_finance_name']);
+
+      if (data) {
+        const settings: Record<string, string> = {};
+        data.forEach(s => {
+          if (s.value) settings[s.key] = s.value;
+        });
+
+        const links: SystemLink[] = [];
+        
+        if (settings['system_link_leads_url']) {
+          links.push({
+            id: 'leads',
+            name: settings['system_link_leads_name'] || 'Dashboard de Campanhas',
+            url: settings['system_link_leads_url'],
+            icon: 'leads',
+            description: 'Acompanhe suas campanhas e métricas'
+          });
+        }
+        
+        if (settings['system_link_finance_url']) {
+          links.push({
+            id: 'finance',
+            name: settings['system_link_finance_name'] || 'Portal Financeiro',
+            url: settings['system_link_finance_url'],
+            icon: 'finance',
+            description: 'Faturas e cobranças'
+          });
+        }
+
+        setSystemLinks(links);
+      }
+    } catch (error) {
+      console.error('Error fetching system links:', error);
+    }
+  };
+
+  const dismissAnnouncement = (id: string) => {
+    const newDismissed = [...dismissedAnnouncements, id];
+    setDismissedAnnouncements(newDismissed);
+    localStorage.setItem('dismissedAnnouncements', JSON.stringify(newDismissed));
+  };
+
+  const visibleAnnouncements = announcements.filter(a => !dismissedAnnouncements.includes(a.id));
+
   const StatCard = ({ title, value, icon: Icon, color }: any) => (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -87,6 +192,28 @@ export default function Dashboard() {
       </CardContent>
     </Card>
   );
+
+  const getPriorityStyles = (priority: string) => {
+    switch (priority) {
+      case 'urgent':
+        return 'border-destructive bg-destructive/5';
+      case 'important':
+        return 'border-amber-500 bg-amber-500/5';
+      default:
+        return 'border-primary bg-primary/5';
+    }
+  };
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case 'urgent':
+        return <AlertTriangle className="h-5 w-5 text-destructive" />;
+      case 'important':
+        return <AlertCircle className="h-5 w-5 text-amber-500" />;
+      default:
+        return <Info className="h-5 w-5 text-primary" />;
+    }
+  };
 
   if (loading) {
     return (
@@ -122,6 +249,42 @@ export default function Dashboard() {
           </Button>
         </div>
 
+        {/* Announcements Alert Banner */}
+        {visibleAnnouncements.length > 0 && (
+          <div className="space-y-3">
+            {visibleAnnouncements.map(announcement => (
+              <Card 
+                key={announcement.id} 
+                className={`border-l-4 ${getPriorityStyles(announcement.priority)}`}
+              >
+                <CardContent className="py-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      {getPriorityIcon(announcement.priority)}
+                      <div>
+                        <h4 className="font-semibold">{announcement.title}</h4>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {announcement.content}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {format(new Date(announcement.created_at), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => dismissAnnouncement(announcement.id)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
@@ -150,40 +313,83 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Quick Actions for Clients */}
-        {company && !isAdmin && !isTeamMember && (
+        {/* External System Links - For all users */}
+        {(systemLinks.length > 0 || company) && (
           <div className="grid gap-4 md:grid-cols-2">
-            {company.leads_system_url && (
-              <Card className="hover:border-primary transition-colors cursor-pointer"
-                    onClick={() => window.open(company.leads_system_url, '_blank')}>
+            {/* Show configured system links for admins/team */}
+            {(isAdmin || isTeamMember) && systemLinks.map(link => (
+              <Card 
+                key={link.id}
+                className="hover:border-primary transition-colors cursor-pointer group"
+                onClick={() => window.open(link.url, '_blank')}
+              >
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
-                    <span>🎯 Gestão de Leads</span>
-                    <ExternalLink className="h-4 w-4" />
+                    <span className="flex items-center gap-2">
+                      {link.icon === 'leads' ? (
+                        <BarChart3 className="h-5 w-5 text-primary" />
+                      ) : (
+                        <CreditCard className="h-5 w-5 text-primary" />
+                      )}
+                      {link.name}
+                    </span>
+                    <ExternalLink className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
-                    Acesse seu painel de leads
+                    {link.description}
                   </p>
                 </CardContent>
               </Card>
-            )}
-            {company.assas_portal_url && (
-              <Card className="hover:border-primary transition-colors cursor-pointer"
-                    onClick={() => window.open(company.assas_portal_url, '_blank')}>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>💳 Minhas Faturas</span>
-                    <ExternalLink className="h-4 w-4" />
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Boletos e pagamentos
-                  </p>
-                </CardContent>
-              </Card>
+            ))}
+            
+            {/* Show company-specific links for clients */}
+            {company && !isAdmin && !isTeamMember && (
+              <>
+                {company.leads_system_url && (
+                  <Card 
+                    className="hover:border-primary transition-colors cursor-pointer group"
+                    onClick={() => window.open(company.leads_system_url, '_blank')}
+                  >
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <BarChart3 className="h-5 w-5 text-primary" />
+                          Gestão de Leads
+                        </span>
+                        <ExternalLink className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">
+                        Acesse seu painel de leads e campanhas
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+                {company.assas_portal_url && (
+                  <Card 
+                    className="hover:border-primary transition-colors cursor-pointer group"
+                    onClick={() => window.open(company.assas_portal_url, '_blank')}
+                  >
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <CreditCard className="h-5 w-5 text-primary" />
+                          Minhas Faturas
+                        </span>
+                        <ExternalLink className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">
+                        Boletos e pagamentos
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
             )}
           </div>
         )}
@@ -197,7 +403,7 @@ export default function Dashboard() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <Badge variant="outline" className="bg-blue-50">Novo</Badge>
+                  <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950">Novo</Badge>
                   <span className="text-sm text-muted-foreground">
                     {stats?.novo || 0} demandas
                   </span>
@@ -214,7 +420,7 @@ export default function Dashboard() {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <Badge variant="outline" className="bg-yellow-50">Em Andamento</Badge>
+                  <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-950">Em Andamento</Badge>
                   <span className="text-sm text-muted-foreground">
                     {stats?.em_andamento || 0} demandas
                   </span>
@@ -231,7 +437,7 @@ export default function Dashboard() {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <Badge variant="outline" className="bg-orange-50">Aguardando Aprovação</Badge>
+                  <Badge variant="outline" className="bg-orange-50 dark:bg-orange-950">Aguardando Aprovação</Badge>
                   <span className="text-sm text-muted-foreground">
                     {stats?.aguardando_aprovacao || 0} demandas
                   </span>
@@ -248,7 +454,7 @@ export default function Dashboard() {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <Badge variant="outline" className="bg-green-50">Concluído</Badge>
+                  <Badge variant="outline" className="bg-green-50 dark:bg-green-950">Concluído</Badge>
                   <span className="text-sm text-muted-foreground">
                     {stats?.concluido || 0} demandas
                   </span>
