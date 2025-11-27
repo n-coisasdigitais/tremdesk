@@ -569,7 +569,7 @@ const Settings = () => {
                           id="resendFromName"
                           value={resendFromName}
                           onChange={(e) => setResendFromName(e.target.value)}
-                          placeholder="Sistema de Demandas"
+                          placeholder="Trem Desk"
                         />
                         <p className="text-xs text-muted-foreground">
                           Nome que aparecerá junto ao email do remetente.
