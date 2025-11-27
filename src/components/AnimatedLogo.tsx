@@ -77,27 +77,36 @@ export function AnimatedLogo({ size = 'md', showAnimation = true, onAnimationCom
             style={{ animationDelay: '0.25s' }}
           />
           
-          {/* Smoke puffs */}
-          <circle
-            cx="16"
-            cy="2"
-            r="2"
-            className={`train-path smoke-circle ${animationPhase === 'drawing' ? 'animate-draw-circle' : ''}`}
-            stroke="currentColor"
-            strokeWidth="1.5"
-            fill="none"
-            style={{ animationDelay: '0.35s' }}
-          />
-          <circle
-            cx="12"
-            cy="3"
-            r="1.5"
-            className={`train-path smoke-circle ${animationPhase === 'drawing' ? 'animate-draw-circle' : ''}`}
-            stroke="currentColor"
-            strokeWidth="1.5"
-            fill="none"
-            style={{ animationDelay: '0.45s' }}
-          />
+          {/* Animated Smoke puffs */}
+          <g className="smoke-animation">
+            <circle
+              cx="16"
+              cy="1"
+              r="1.5"
+              className="smoke-puff smoke-puff-1"
+              stroke="currentColor"
+              strokeWidth="1"
+              fill="none"
+            />
+            <circle
+              cx="14"
+              cy="0"
+              r="1"
+              className="smoke-puff smoke-puff-2"
+              stroke="currentColor"
+              strokeWidth="1"
+              fill="none"
+            />
+            <circle
+              cx="18"
+              cy="-1"
+              r="1.2"
+              className="smoke-puff smoke-puff-3"
+              stroke="currentColor"
+              strokeWidth="1"
+              fill="none"
+            />
+          </g>
           
           {/* Windows */}
           <rect
@@ -158,7 +167,7 @@ export function AnimatedLogo({ size = 'md', showAnimation = true, onAnimationCom
             cx="14"
             cy="36"
             r="4"
-            className={`train-path wheel ${animationPhase === 'drawing' ? 'animate-draw-circle' : ''} ${animationPhase === 'complete' ? 'animate-wheel-spin' : ''}`}
+            className={`train-path wheel ${animationPhase === 'drawing' ? 'animate-draw-circle' : ''}`}
             stroke="currentColor"
             strokeWidth="2"
             fill="none"
@@ -168,7 +177,7 @@ export function AnimatedLogo({ size = 'md', showAnimation = true, onAnimationCom
             cx="34"
             cy="36"
             r="4"
-            className={`train-path wheel ${animationPhase === 'drawing' ? 'animate-draw-circle' : ''} ${animationPhase === 'complete' ? 'animate-wheel-spin' : ''}`}
+            className={`train-path wheel ${animationPhase === 'drawing' ? 'animate-draw-circle' : ''}`}
             stroke="currentColor"
             strokeWidth="2"
             fill="none"
