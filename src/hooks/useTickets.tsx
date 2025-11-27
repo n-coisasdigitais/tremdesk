@@ -89,7 +89,7 @@ export const useTickets = () => {
 
       // Background tasks (non-blocking)
       if (data) {
-        // Create Google Drive folder
+        // Create Google Drive folder (optional - only if configured)
         supabase.functions.invoke('google-drive-folders', {
           body: {
             action: 'create_demand_folder',
@@ -98,11 +98,21 @@ export const useTickets = () => {
             company_id: data.company_id,
           },
         }).then(response => {
+          if (response.error) {
+            // Check if it's a configuration error (expected if not configured)
+            console.log('Google Drive integration not configured or error:', response.error);
+            return;
+          }
+          if (response.data?.error) {
+            console.log('Google Drive integration not configured:', response.data.error);
+            return;
+          }
           if (response.data?.folder_url) {
             console.log('Google Drive folder created:', response.data.folder_url);
           }
         }).catch(err => {
-          console.log('Google Drive folder creation skipped or failed:', err.message);
+          // Silently ignore - Google Drive is optional
+          console.log('Google Drive folder creation skipped:', err?.message || 'not configured');
         });
 
         // Send email notifications to team members assigned to this company

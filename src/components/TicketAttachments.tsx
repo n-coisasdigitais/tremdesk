@@ -112,8 +112,16 @@ export const TicketAttachments = ({ ticketId, companyId }: TicketAttachmentsProp
       },
     });
 
-    if (error) throw error;
-    if (data?.error) throw new Error(data.error);
+    if (error) {
+      throw new Error('Erro ao conectar com Google Drive. Verifique se a integração está configurada nas Configurações.');
+    }
+    if (data?.error) {
+      // Check if it's a configuration error and provide a helpful message
+      if (data.error.includes('não configurado') || data.error.includes('Configure')) {
+        throw new Error('Google Drive não está configurado. Vá em Configurações → Integrações para configurar a conta de serviço do Google Drive.');
+      }
+      throw new Error(data.error);
+    }
 
     // Save attachment record
     const { error: insertError } = await supabase.from('ticket_attachments').insert({
