@@ -7,13 +7,16 @@ const corsHeaders = {
 };
 
 interface GoogleDriveRequest {
-  action: "create_company_folder" | "create_demand_folder" | "share_folder";
+  action: "create_company_folder" | "create_demand_folder" | "share_folder" | "upload_file";
   company_id?: string;
   company_name?: string;
   demand_id?: string;
   demand_title?: string;
   folder_id?: string;
   email?: string;
+  file_name?: string;
+  file_type?: string;
+  file_content?: string; // base64 encoded
 }
 
 // Get access token using service account credentials
@@ -124,6 +127,91 @@ async function createFolder(
   return data;
 }
 
+// Upload a file to Google Drive
+async function uploadFile(
+  accessToken: string,
+  fileName: string,
+  fileType: string,
+  fileContent: string, // base64 encoded
+  parentId: string
+): Promise<{ id: string; webViewLink: string; webContentLink: string }> {
+  console.log(`Uploading file: ${fileName} to folder: ${parentId}`);
+
+  // Decode base64 content
+  const binaryContent = Uint8Array.from(atob(fileContent), c => c.charCodeAt(0));
+
+  // Metadata for the file
+  const metadata = {
+    name: fileName,
+    parents: [parentId],
+  };
+
+  // Create multipart request body
+  const boundary = "-------314159265358979323846";
+  const delimiter = "\r\n--" + boundary + "\r\n";
+  const closeDelimiter = "\r\n--" + boundary + "--";
+
+  const metadataString = JSON.stringify(metadata);
+  
+  // Build multipart body manually
+  const encoder = new TextEncoder();
+  const metadataPart = encoder.encode(
+    delimiter +
+    "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
+    metadataString +
+    delimiter +
+    `Content-Type: ${fileType || 'application/octet-stream'}\r\n` +
+    "Content-Transfer-Encoding: base64\r\n\r\n"
+  );
+  const closePart = encoder.encode(closeDelimiter);
+  const contentPart = encoder.encode(fileContent);
+
+  // Combine all parts
+  const body = new Uint8Array(metadataPart.length + contentPart.length + closePart.length);
+  body.set(metadataPart, 0);
+  body.set(contentPart, metadataPart.length);
+  body.set(closePart, metadataPart.length + contentPart.length);
+
+  const response = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink,webContentLink",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": `multipart/related; boundary=${boundary}`,
+      },
+      body: body,
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error("Upload file error:", error);
+    throw new Error(`Failed to upload file: ${error}`);
+  }
+
+  const data = await response.json();
+  console.log(`File uploaded: ${data.id}`);
+  
+  // Make the file accessible via link
+  await fetch(
+    `https://www.googleapis.com/drive/v3/files/${data.id}/permissions`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        type: "anyone",
+        role: "reader",
+      }),
+    }
+  );
+
+  return data;
+}
+
 // Share a folder with an email
 async function shareFolder(
   accessToken: string,
@@ -186,6 +274,68 @@ async function findFolder(
   return data.files?.[0]?.id || null;
 }
 
+// Get or create demand folder
+async function getOrCreateDemandFolder(
+  accessToken: string,
+  supabase: any,
+  demandId: string,
+  companyId: string,
+  rootFolderId: string
+): Promise<{ folderId: string; folderUrl: string }> {
+  // Get company info
+  const { data: company, error: companyError } = await supabase
+    .from("companies")
+    .select("name, google_drive_folder_id")
+    .eq("id", companyId)
+    .single();
+
+  if (companyError || !company) {
+    throw new Error("Company not found");
+  }
+
+  // Get ticket info
+  const { data: ticket, error: ticketError } = await supabase
+    .from("tickets")
+    .select("title")
+    .eq("id", demandId)
+    .single();
+
+  let companyFolderId = company.google_drive_folder_id;
+
+  // Create company folder if it doesn't exist
+  if (!companyFolderId) {
+    const companyFolder = await createFolder(accessToken, company.name, rootFolderId);
+    companyFolderId = companyFolder.id;
+
+    await supabase
+      .from("companies")
+      .update({ google_drive_folder_id: companyFolderId })
+      .eq("id", companyId);
+  }
+
+  // Find or create "Demandas" folder
+  let demandasFolderId = await findFolder(accessToken, "Demandas", companyFolderId);
+  
+  if (!demandasFolderId) {
+    const demandasFolder = await createFolder(accessToken, "Demandas", companyFolderId);
+    demandasFolderId = demandasFolder.id;
+  }
+
+  // Find or create demand folder
+  const demandFolderName = `DEM-${demandId.substring(0, 8).toUpperCase()} - ${ticket?.title || 'Demanda'}`;
+  let demandFolderId = await findFolder(accessToken, demandFolderName, demandasFolderId);
+
+  if (!demandFolderId) {
+    const demandFolder = await createFolder(accessToken, demandFolderName, demandasFolderId);
+    demandFolderId = demandFolder.id;
+  }
+
+  return {
+    folderId: demandFolderId,
+    folderUrl: `https://drive.google.com/drive/folders/${demandFolderId}`,
+  };
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -228,7 +378,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const body: GoogleDriveRequest = await req.json();
-    console.log("Request body:", body);
+    console.log("Request action:", body.action);
 
     // Get access token
     const accessToken = await getAccessToken(serviceAccountKey);
@@ -320,6 +470,38 @@ const handler = async (req: Request): Promise<Response> => {
         result = {
           demand_folder_id: demandFolder.id,
           folder_url: demandFolder.webViewLink || `https://drive.google.com/drive/folders/${demandFolder.id}`,
+        };
+        break;
+      }
+
+      case "upload_file": {
+        if (!body.demand_id || !body.company_id || !body.file_name || !body.file_content) {
+          throw new Error("demand_id, company_id, file_name, and file_content are required");
+        }
+
+        // Get or create the demand folder
+        const { folderId, folderUrl } = await getOrCreateDemandFolder(
+          accessToken,
+          supabase,
+          body.demand_id,
+          body.company_id,
+          rootFolderId
+        );
+
+        // Upload the file
+        const uploadedFile = await uploadFile(
+          accessToken,
+          body.file_name,
+          body.file_type || "application/octet-stream",
+          body.file_content,
+          folderId
+        );
+
+        result = {
+          file_id: uploadedFile.id,
+          file_url: uploadedFile.webViewLink || `https://drive.google.com/file/d/${uploadedFile.id}/view`,
+          folder_id: folderId,
+          folder_url: folderUrl,
         };
         break;
       }

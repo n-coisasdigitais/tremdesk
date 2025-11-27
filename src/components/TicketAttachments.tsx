@@ -1,0 +1,258 @@
+import { useState, useEffect, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Upload, File, Trash2, ExternalLink, Loader2, FolderOpen } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+interface TicketAttachment {
+  id: string;
+  file_name: string;
+  file_type: string | null;
+  file_url: string;
+  google_drive_file_id: string | null;
+  created_at: string;
+  uploaded_by: string | null;
+  uploader?: {
+    full_name: string;
+  };
+}
+
+interface TicketAttachmentsProps {
+  ticketId: string;
+  companyId: string;
+}
+
+export const TicketAttachments = ({ ticketId, companyId }: TicketAttachmentsProps) => {
+  const { user, isAdmin, isTeamMember } = useAuth();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachments, setAttachments] = useState<TicketAttachment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [folderUrl, setFolderUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchAttachments();
+  }, [ticketId]);
+
+  const fetchAttachments = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('ticket_attachments')
+        .select('*, uploader:profiles!ticket_attachments_uploaded_by_fkey(full_name)')
+        .eq('ticket_id', ticketId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAttachments(data || []);
+
+      // Get folder URL from first attachment if exists
+      if (data && data.length > 0 && data[0].google_drive_folder_id) {
+        setFolderUrl(`https://drive.google.com/drive/folders/${data[0].google_drive_folder_id}`);
+      }
+    } catch (error) {
+      console.error('Error fetching attachments:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        await uploadFile(file);
+      }
+      toast({ title: 'Arquivos enviados com sucesso!' });
+      await fetchAttachments();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao enviar arquivo',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const uploadFile = async (file: File) => {
+    // Convert file to base64
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove the data URL prefix (e.g., "data:application/pdf;base64,")
+        const base64Data = result.split(',')[1];
+        resolve(base64Data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    // Upload to Google Drive via edge function
+    const { data, error } = await supabase.functions.invoke('google-drive-folders', {
+      body: {
+        action: 'upload_file',
+        demand_id: ticketId,
+        company_id: companyId,
+        file_name: file.name,
+        file_type: file.type,
+        file_content: base64,
+      },
+    });
+
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+
+    // Save attachment record
+    const { error: insertError } = await supabase.from('ticket_attachments').insert({
+      ticket_id: ticketId,
+      file_name: file.name,
+      file_type: file.type,
+      file_url: data.file_url,
+      google_drive_file_id: data.file_id,
+      google_drive_folder_id: data.folder_id,
+      uploaded_by: user?.id,
+    });
+
+    if (insertError) throw insertError;
+
+    // Update folder URL if we got it
+    if (data.folder_url) {
+      setFolderUrl(data.folder_url);
+    }
+  };
+
+  const handleDelete = async (attachment: TicketAttachment) => {
+    if (!confirm('Tem certeza que deseja excluir este arquivo?')) return;
+
+    try {
+      // Delete from database (file remains in Google Drive)
+      const { error } = await supabase
+        .from('ticket_attachments')
+        .delete()
+        .eq('id', attachment.id);
+
+      if (error) throw error;
+
+      toast({ title: 'Arquivo removido!' });
+      await fetchAttachments();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao remover arquivo',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const getFileIcon = (fileType: string | null) => {
+    return <File className="h-4 w-4" />;
+  };
+
+  const canDelete = isAdmin || isTeamMember;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="font-medium flex items-center gap-2">
+          <Upload className="h-4 w-4" />
+          Arquivos
+        </h4>
+        <div className="flex gap-2">
+          {folderUrl && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open(folderUrl, '_blank')}
+            >
+              <FolderOpen className="h-4 w-4 mr-2" />
+              Abrir Pasta
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4 mr-2" />
+            )}
+            Enviar Arquivo
+          </Button>
+        </div>
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+
+      {loading ? (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : attachments.length === 0 ? (
+        <div className="text-sm text-muted-foreground text-center py-4 border border-dashed rounded-md">
+          Nenhum arquivo anexado. Clique em "Enviar Arquivo" para adicionar.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {attachments.map((attachment) => (
+            <div
+              key={attachment.id}
+              className="flex items-center gap-3 p-2 border rounded-md bg-card hover:bg-accent/50 transition-colors"
+            >
+              {getFileIcon(attachment.file_type)}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{attachment.file_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {attachment.uploader?.full_name || 'Usuário'} • {' '}
+                  {format(new Date(attachment.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                </p>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => window.open(attachment.file_url, '_blank')}
+                  title="Abrir arquivo"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+                {canDelete && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDelete(attachment)}
+                    title="Remover arquivo"
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};

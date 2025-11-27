@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { TipTapEditor } from './TipTapEditor';
+import { TicketAttachments } from './TicketAttachments';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -354,6 +355,11 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
               <TipTapEditor content={ticket.description_json} editable={false} />
             </div>
           )}
+
+          {/* Attachments */}
+          <TicketAttachments ticketId={ticket.id} companyId={ticket.company_id} />
+
+          <Separator />
 
           {/* Approval Section */}
           {canApprove && (
