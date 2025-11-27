@@ -10,24 +10,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import {
-  LayoutDashboard,
-  KanbanSquare,
-  Users,
-  Building2,
-  Settings,
-  LogOut,
-  Bell,
-  BarChart3,
-  Shield,
-  UserCog,
-} from 'lucide-react';
+import { Bell, LogOut, Settings, Menu } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Popover,
@@ -37,6 +22,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { AppSidebar } from '@/components/AppSidebar';
 
 interface LayoutProps {
   children: ReactNode;
@@ -52,7 +39,6 @@ interface Notification {
 
 export const Layout = ({ children }: LayoutProps) => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { user, profile, signOut, isAdmin, isTeamMember } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -61,7 +47,6 @@ export const Layout = ({ children }: LayoutProps) => {
     if (user) {
       fetchNotifications();
       
-      // Subscribe to new notifications
       const channel = supabase
         .channel('notifications_changes')
         .on(
@@ -140,174 +125,130 @@ export const Layout = ({ children }: LayoutProps) => {
         return 'Alterações solicitadas';
       case 'new_ticket':
         return 'Nova demanda criada';
+      case 'email_reply':
+        return 'Resposta recebida por email';
       default:
         return 'Nova notificação';
     }
   };
 
-  const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
-    { path: '/kanban', label: 'Demandas', icon: KanbanSquare, show: true },
-    { path: '/reports', label: 'Relatórios', icon: BarChart3, show: true },
-    { path: '/admin/companies', label: 'Empresas', icon: Building2, show: isAdmin || isTeamMember },
-  ];
-
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
-          <div className="mr-4 flex">
-            <a href="/dashboard" className="mr-6 flex items-center space-x-2">
-              <KanbanSquare className="h-6 w-6" />
-              <span className="hidden font-bold sm:inline-block">
-                Sistema de Demandas
-              </span>
-            </a>
-          </div>
-
-          <nav className="flex items-center space-x-6 text-sm font-medium flex-1">
-            {navItems.filter(item => item.show).map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-              
-              return (
-                <button
-                  key={item.path}
-                  onClick={() => navigate(item.path)}
-                  className={`flex items-center space-x-2 transition-colors hover:text-foreground/80 ${
-                    isActive ? 'text-foreground' : 'text-foreground/60'
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span className="hidden sm:inline">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-
-          <div className="flex items-center space-x-4">
-            {/* Notifications */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
-                  <Bell className="h-5 w-5" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
-                      {unreadCount}
-                    </span>
-                  )}
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background">
+        <AppSidebar />
+        
+        <div className="flex-1 flex flex-col">
+          {/* Header */}
+          <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="flex h-14 items-center px-4 gap-4">
+              <SidebarTrigger>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-5 w-5" />
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-0" align="end">
-                <div className="flex items-center justify-between p-4 border-b">
-                  <h4 className="font-semibold">Notificações</h4>
-                  {unreadCount > 0 && (
-                    <Button variant="ghost" size="sm" onClick={markAllAsRead}>
-                      Marcar todas como lidas
+              </SidebarTrigger>
+
+              <div className="flex-1" />
+
+              <div className="flex items-center space-x-4">
+                {/* Notifications */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative">
+                      <Bell className="h-5 w-5" />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+                          {unreadCount}
+                        </span>
+                      )}
                     </Button>
-                  )}
-                </div>
-                <ScrollArea className="h-72">
-                  {notifications.length === 0 ? (
-                    <div className="p-4 text-center text-muted-foreground text-sm">
-                      Nenhuma notificação
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0" align="end">
+                    <div className="flex items-center justify-between p-4 border-b">
+                      <h4 className="font-semibold">Notificações</h4>
+                      {unreadCount > 0 && (
+                        <Button variant="ghost" size="sm" onClick={markAllAsRead}>
+                          Marcar todas como lidas
+                        </Button>
+                      )}
                     </div>
-                  ) : (
-                    <div className="divide-y">
-                      {notifications.map((notification) => (
-                        <button
-                          key={notification.id}
-                          onClick={() => {
-                            markAsRead(notification.id);
-                            if (notification.ticket_id) {
-                              navigate('/kanban');
-                            }
-                          }}
-                          className={`w-full text-left p-4 hover:bg-muted/50 transition-colors ${
-                            !notification.read_at ? 'bg-primary/5' : ''
-                          }`}
-                        >
-                          <p className="text-sm font-medium">
-                            {getNotificationText(notification)}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {format(new Date(notification.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
-                          </p>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-              </PopoverContent>
-            </Popover>
+                    <ScrollArea className="h-72">
+                      {notifications.length === 0 ? (
+                        <div className="p-4 text-center text-muted-foreground text-sm">
+                          Nenhuma notificação
+                        </div>
+                      ) : (
+                        <div className="divide-y">
+                          {notifications.map((notification) => (
+                            <button
+                              key={notification.id}
+                              onClick={() => {
+                                markAsRead(notification.id);
+                                if (notification.ticket_id) {
+                                  navigate('/kanban');
+                                }
+                              }}
+                              className={`w-full text-left p-4 hover:bg-muted/50 transition-colors ${
+                                !notification.read_at ? 'bg-primary/5' : ''
+                              }`}
+                            >
+                              <p className="text-sm font-medium">
+                                {getNotificationText(notification)}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {format(new Date(notification.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
 
-            {/* User Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name} />
-                    <AvatarFallback>
-                      {profile?.full_name?.charAt(0).toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{profile?.full_name}</p>
-                    <div className="flex gap-1 mt-1">
-                      {isAdmin && <Badge variant="secondary" className="text-xs">Admin</Badge>}
-                      {isTeamMember && <Badge variant="secondary" className="text-xs">Equipe</Badge>}
-                    </div>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {isAdmin && (
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <Shield className="mr-2 h-4 w-4" />
-                      <span>Administração</span>
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuPortal>
-                      <DropdownMenuSubContent>
-                        <DropdownMenuItem onClick={() => navigate('/admin/users')}>
-                          <UserCog className="mr-2 h-4 w-4" />
-                          <span>Usuários</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => navigate('/admin/companies')}>
-                          <Building2 className="mr-2 h-4 w-4" />
-                          <span>Empresas</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => navigate('/admin/teams')}>
-                          <Users className="mr-2 h-4 w-4" />
-                          <span>Times</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuPortal>
-                  </DropdownMenuSub>
-                )}
-                <DropdownMenuItem onClick={() => navigate('/settings')}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Configurações</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sair</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                {/* User Menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name} />
+                        <AvatarFallback>
+                          {profile?.full_name?.charAt(0).toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{profile?.full_name}</p>
+                        <div className="flex gap-1 mt-1">
+                          {isAdmin && <Badge variant="secondary" className="text-xs">Admin</Badge>}
+                          {isTeamMember && <Badge variant="secondary" className="text-xs">Equipe</Badge>}
+                        </div>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate('/settings')}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Configurações</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Sair</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </header>
+
+          {/* Main Content */}
+          <main className="flex-1 p-6 overflow-auto">
+            {children}
+          </main>
         </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="container py-6">
-        {children}
-      </main>
-    </div>
+      </div>
+    </SidebarProvider>
   );
 };

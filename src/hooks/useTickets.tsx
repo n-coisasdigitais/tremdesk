@@ -3,12 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Ticket, TicketStatus } from '@/types';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { useEmailNotifications } from './useEmailNotifications';
 
 export const useTickets = () => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
+  const { notifyTicketCreated, notifyTicketUpdated, notifyTicketApproved, notifyTicketRejected } = useEmailNotifications();
 
   useEffect(() => {
     if (user) {
@@ -72,7 +74,10 @@ export const useTickets = () => {
           ...ticketData,
           created_by: user?.id
         }])
-        .select()
+        .select(`
+          *,
+          company:companies(*)
+        `)
         .single();
 
       if (error) throw error;
@@ -82,8 +87,9 @@ export const useTickets = () => {
         description: 'A demanda foi criada com sucesso.'
       });
 
-      // Create Google Drive folder in background (non-blocking)
+      // Background tasks (non-blocking)
       if (data) {
+        // Create Google Drive folder
         supabase.functions.invoke('google-drive-folders', {
           body: {
             action: 'create_demand_folder',
@@ -97,6 +103,16 @@ export const useTickets = () => {
           }
         }).catch(err => {
           console.log('Google Drive folder creation skipped or failed:', err.message);
+        });
+
+        // Send email notifications to team members assigned to this company
+        notifyTicketCreated(
+          data.company_id,
+          data.title,
+          data.company?.name || 'Empresa',
+          profile?.full_name || 'Usuário'
+        ).catch(err => {
+          console.log('Email notification skipped or failed:', err);
         });
       }
 
@@ -113,8 +129,10 @@ export const useTickets = () => {
     }
   };
 
-  const updateTicketStatus = async (ticketId: string, newStatus: TicketStatus) => {
+  const updateTicketStatus = async (ticketId: string, newStatus: TicketStatus, feedback?: string) => {
     try {
+      const ticket = tickets.find(t => t.id === ticketId);
+      const oldStatus = ticket?.status;
       const updateData: any = { status: newStatus };
       
       if (newStatus === 'concluido') {
@@ -133,13 +151,18 @@ export const useTickets = () => {
         ticket_id: ticketId,
         user_id: user?.id,
         action_type: 'status_changed',
-        metadata_json: { from: tickets.find(t => t.id === ticketId)?.status, to: newStatus }
+        metadata_json: { from: oldStatus, to: newStatus }
       }]);
 
       toast({
         title: 'Status atualizado',
         description: 'O status da demanda foi atualizado.'
       });
+
+      // Send email notifications based on status change
+      if (ticket) {
+        sendStatusChangeNotification(ticket, oldStatus, newStatus, feedback);
+      }
 
       await fetchTickets();
       return { error: null };
@@ -151,6 +174,49 @@ export const useTickets = () => {
         variant: 'destructive'
       });
       return { error };
+    }
+  };
+
+  const sendStatusChangeNotification = async (
+    ticket: Ticket,
+    oldStatus: string | undefined,
+    newStatus: TicketStatus,
+    feedback?: string
+  ) => {
+    try {
+      // Collect user IDs to notify
+      const userIds: string[] = [];
+
+      if (ticket.creator?.id) {
+        userIds.push(ticket.creator.id);
+      }
+      if (ticket.assignee?.id && !userIds.includes(ticket.assignee.id)) {
+        userIds.push(ticket.assignee.id);
+      }
+
+      if (userIds.length === 0) return;
+
+      // Determine which notification to send based on status
+      if (newStatus === 'aprovado') {
+        await notifyTicketApproved(userIds, ticket.title, feedback);
+      } else if (oldStatus === 'aguardando_aprovacao') {
+        // Changes requested (coming from aguardando_aprovacao to any other status except aprovado)
+        await notifyTicketRejected(userIds, ticket.title, feedback || 'Alterações solicitadas');
+      } else {
+        // Generic status update
+        const statusLabels: Record<string, string> = {
+          'novo': 'Novo',
+          'em_andamento': 'Em Andamento',
+          'aguardando_aprovacao': 'Aguardando Aprovação',
+          'aprovado': 'Aprovado',
+          'concluido': 'Concluído',
+          'cancelado': 'Cancelado'
+        };
+        const message = `Status alterado para: ${statusLabels[newStatus] || newStatus}`;
+        await notifyTicketUpdated(userIds, ticket.title, message);
+      }
+    } catch (error) {
+      console.error('Error sending status change notification:', error);
     }
   };
 
