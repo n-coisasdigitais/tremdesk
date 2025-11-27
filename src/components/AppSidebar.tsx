@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { StaticLogo } from '@/components/AnimatedLogo';
 import {
   LayoutDashboard,
   BarChart3,
@@ -56,13 +57,12 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="border-r">
-      <SidebarHeader className="border-b px-6 py-4">
+      <SidebarHeader className="border-b px-4 py-4">
         <button 
           onClick={() => navigate('/dashboard')}
-          className="flex items-center gap-3 font-bold text-lg group"
+          className="text-primary"
         >
-          <span className="text-2xl animate-train-chug group-hover:animate-train-chug">🚂</span>
-          <span>Trem Desk</span>
+          <StaticLogo size="sm" />
         </button>
       </SidebarHeader>
 
