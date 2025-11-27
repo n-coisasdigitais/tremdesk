@@ -104,7 +104,131 @@ All colors MUST be HSL.
   }
 }
 
-/* Trem Desk Logo Animations */
+/* Trem Desk Logo Animations - Modern Line Drawing */
+@keyframes draw-line {
+  0% {
+    stroke-dashoffset: var(--path-length, 100);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes draw-circle {
+  0% {
+    stroke-dashoffset: var(--circle-length, 50);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-delayed {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes text-slide-in {
+  0% {
+    transform: translateX(-20px);
+    opacity: 0;
+    letter-spacing: 0.2em;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+    letter-spacing: 0.025em;
+  }
+}
+
+@keyframes wheel-rotate {
+  from {
+    transform-origin: center;
+    transform: rotate(0deg);
+  }
+  to {
+    transform-origin: center;
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes subtle-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Train SVG styling */
+.train-svg {
+  color: hsl(var(--primary));
+}
+
+.train-path {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+  --path-length: 100;
+}
+
+.smoke-circle {
+  stroke-dasharray: 25;
+  --circle-length: 25;
+}
+
+.wheel {
+  stroke-dasharray: 30;
+  --circle-length: 30;
+}
+
+.animate-draw-line {
+  stroke-dashoffset: 100;
+  animation: draw-line 0.8s ease-out forwards;
+}
+
+.animate-draw-circle {
+  animation: draw-circle 0.6s ease-out forwards;
+}
+
+.animate-fade-in-delayed {
+  opacity: 0;
+  animation: fade-in-delayed 0.3s ease-out forwards;
+}
+
+.animate-text-slide-in {
+  animation: text-slide-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-wheel-spin {
+  animation: wheel-rotate 2s linear infinite;
+  transform-origin: center;
+}
+
+/* Hover effects for logo */
+.train-svg:hover {
+  animation: subtle-float 1s ease-in-out infinite;
+}
+
+.train-svg:hover .wheel {
+  animation: wheel-rotate 0.5s linear infinite;
+}
+
+/* Legacy animations for compatibility */
 @keyframes train-move {
   0% {
     transform: translateX(-100%);
@@ -149,70 +273,10 @@ All colors MUST be HSL.
   }
 }
 
-@keyframes wheel-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .animate-train-move {
   animation: train-move 1.5s ease-out forwards;
 }
 
 .animate-text-reveal {
   animation: text-reveal 0.5s ease-out forwards;
-}
-
-.smoke-container {
-  position: relative;
-  width: 20px;
-  height: 20px;
-}
-
-.smoke-particle {
-  position: absolute;
-  font-size: 10px;
-  opacity: 0;
-}
-
-.animate-smoke .smoke-1 {
-  animation: smoke-rise 1s ease-out infinite;
-  animation-delay: 0s;
-  left: 0;
-}
-
-.animate-smoke .smoke-2 {
-  animation: smoke-rise 1s ease-out infinite;
-  animation-delay: 0.3s;
-  left: 5px;
-}
-
-.animate-smoke .smoke-3 {
-  animation: smoke-rise 1s ease-out infinite;
-  animation-delay: 0.6s;
-  left: 10px;
-}
-
-/* Continuous train animation for sidebar */
-@keyframes train-chug {
-  0%, 100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(2px);
-  }
-  75% {
-    transform: translateX(-2px);
-  }
-}
-
-.animate-train-chug {
-  animation: train-chug 0.5s ease-in-out infinite;
-}
-
-.animate-train-chug:hover {
-  animation: train-chug 0.3s ease-in-out infinite;
 }
