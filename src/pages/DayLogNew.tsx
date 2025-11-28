@@ -1,0 +1,324 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { 
+  Calendar, 
+  User, 
+  Save, 
+  X, 
+  Link as LinkIcon,
+  Bot,
+  FileText
+} from 'lucide-react';
+import { Layout } from '@/components/Layout';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { useDayLogs, DAYLOG_TAGS, TAG_COLORS, DayLogFormData } from '@/hooks/useDayLogs';
+import { useAuth } from '@/hooks/useAuth';
+import { cn } from '@/lib/utils';
+
+export default function DayLogNew() {
+  const navigate = useNavigate();
+  const { createDayLog } = useDayLogs();
+  const { profile } = useAuth();
+  const [saving, setSaving] = useState(false);
+  
+  const [formData, setFormData] = useState<DayLogFormData>({
+    date: format(new Date(), 'yyyy-MM-dd'),
+    description: '',
+    work_done: '',
+    work_pending: '',
+    next_steps: '',
+    tags: [],
+    transcription_url: '',
+    ai_assistant_url: '',
+    meeting_notes: '',
+  });
+
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setSelectedDate(date);
+      setFormData(prev => ({
+        ...prev,
+        date: format(date, 'yyyy-MM-dd'),
+      }));
+    }
+  };
+
+  const toggleTag = (tag: string) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.includes(tag)
+        ? prev.tags.filter(t => t !== tag)
+        : [...prev.tags, tag],
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.work_done.trim()) {
+      return;
+    }
+
+    setSaving(true);
+    const result = await createDayLog(formData);
+    setSaving(false);
+
+    if (result) {
+      navigate('/daylog');
+    }
+  };
+
+  return (
+    <Layout>
+      <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Novo DayLog</h1>
+            <p className="text-muted-foreground">Registre suas atividades do dia</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => navigate('/daylog')}
+              className="gap-2"
+            >
+              <X className="h-4 w-4" />
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving || !formData.work_done.trim()} className="gap-2">
+              <Save className="h-4 w-4" />
+              {saving ? 'Salvando...' : 'Salvar DayLog'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Basic Info */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Informações Básicas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Date */}
+              <div className="space-y-2">
+                <Label>Data</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start gap-2"
+                      type="button"
+                    >
+                      <Calendar className="h-4 w-4" />
+                      {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={handleDateSelect}
+                      locale={ptBR}
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* User (read-only) */}
+              <div className="space-y-2">
+                <Label>Colaborador</Label>
+                <div className="flex items-center gap-2 h-10 px-3 border rounded-md bg-muted/50">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-foreground">{profile?.full_name || 'Carregando...'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="description">Resumo do dia (opcional)</Label>
+              <Input
+                id="description"
+                placeholder="Ex: Dia focado em campanhas do cliente X"
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Activities */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Registro de Atividades</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Work Done */}
+            <div className="space-y-2">
+              <Label htmlFor="work_done">
+                O que foi feito hoje <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="work_done"
+                placeholder="Descreva as atividades realizadas hoje..."
+                className="min-h-[150px]"
+                value={formData.work_done}
+                onChange={(e) => setFormData(prev => ({ ...prev, work_done: e.target.value }))}
+                required
+              />
+            </div>
+
+            {/* Work Pending */}
+            <div className="space-y-2">
+              <Label htmlFor="work_pending">O que ficou pendente</Label>
+              <Textarea
+                id="work_pending"
+                placeholder="Atividades que não foram concluídas..."
+                className="min-h-[100px]"
+                value={formData.work_pending}
+                onChange={(e) => setFormData(prev => ({ ...prev, work_pending: e.target.value }))}
+              />
+            </div>
+
+            {/* Next Steps */}
+            <div className="space-y-2">
+              <Label htmlFor="next_steps">Próximos passos</Label>
+              <Textarea
+                id="next_steps"
+                placeholder="O que precisa ser feito em seguida..."
+                className="min-h-[100px]"
+                value={formData.next_steps}
+                onChange={(e) => setFormData(prev => ({ ...prev, next_steps: e.target.value }))}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tags */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Categorização</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Label className="mb-3 block">Tags</Label>
+            <div className="flex flex-wrap gap-2">
+              {DAYLOG_TAGS.map((tag) => {
+                const colors = TAG_COLORS[tag];
+                const isSelected = formData.tags.includes(tag);
+                return (
+                  <Badge
+                    key={tag}
+                    variant="outline"
+                    className={cn(
+                      'cursor-pointer transition-all px-3 py-1',
+                      isSelected 
+                        ? `${colors.bg} ${colors.text} border-transparent` 
+                        : 'hover:bg-muted'
+                    )}
+                    onClick={() => toggleTag(tag)}
+                  >
+                    {tag}
+                  </Badge>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* External Links */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <LinkIcon className="h-5 w-5" />
+              Links Externos
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Transcription URL */}
+            <div className="space-y-2">
+              <Label htmlFor="transcription_url" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Link da transcrição
+              </Label>
+              <Input
+                id="transcription_url"
+                type="url"
+                placeholder="https://fireflies.ai/... ou https://otter.ai/..."
+                value={formData.transcription_url}
+                onChange={(e) => setFormData(prev => ({ ...prev, transcription_url: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Fireflies, Otter.ai, Google Meet, etc.
+              </p>
+            </div>
+
+            {/* AI Assistant URL */}
+            <div className="space-y-2">
+              <Label htmlFor="ai_assistant_url" className="flex items-center gap-2">
+                <Bot className="h-4 w-4" />
+                Link da IA/Assistente
+              </Label>
+              <Input
+                id="ai_assistant_url"
+                type="url"
+                placeholder="https://chat.openai.com/... ou https://claude.ai/..."
+                value={formData.ai_assistant_url}
+                onChange={(e) => setFormData(prev => ({ ...prev, ai_assistant_url: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                ChatGPT, Claude, ou outra IA utilizada
+              </p>
+            </div>
+
+            {/* Meeting Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="meeting_notes">Notas de reunião</Label>
+              <Textarea
+                id="meeting_notes"
+                placeholder="Anotações adicionais de reuniões..."
+                className="min-h-[80px]"
+                value={formData.meeting_notes}
+                onChange={(e) => setFormData(prev => ({ ...prev, meeting_notes: e.target.value }))}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Submit Button (Mobile) */}
+        <div className="flex justify-end gap-2 md:hidden">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => navigate('/daylog')}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={saving || !formData.work_done.trim()}>
+            {saving ? 'Salvando...' : 'Salvar DayLog'}
+          </Button>
+        </div>
+      </form>
+    </Layout>
+  );
+}

@@ -155,6 +155,104 @@ export type Database = {
         }
         Relationships: []
       }
+      day_log_attachments: {
+        Row: {
+          created_at: string | null
+          day_log_id: string
+          file_name: string
+          file_type: string | null
+          file_url: string
+          google_drive_file_id: string | null
+          google_drive_folder_id: string | null
+          id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          day_log_id: string
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          google_drive_file_id?: string | null
+          google_drive_folder_id?: string | null
+          id?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          day_log_id?: string
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          google_drive_file_id?: string | null
+          google_drive_folder_id?: string | null
+          id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "day_log_attachments_day_log_id_fkey"
+            columns: ["day_log_id"]
+            isOneToOne: false
+            referencedRelation: "day_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      day_logs: {
+        Row: {
+          ai_assistant_url: string | null
+          created_at: string | null
+          date: string
+          description: string | null
+          google_doc_id: string | null
+          google_doc_url: string | null
+          id: string
+          meeting_notes: string | null
+          next_steps: string | null
+          tags: string[] | null
+          transcription_url: string | null
+          updated_at: string | null
+          user_id: string
+          work_done: string
+          work_pending: string | null
+        }
+        Insert: {
+          ai_assistant_url?: string | null
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          google_doc_id?: string | null
+          google_doc_url?: string | null
+          id?: string
+          meeting_notes?: string | null
+          next_steps?: string | null
+          tags?: string[] | null
+          transcription_url?: string | null
+          updated_at?: string | null
+          user_id: string
+          work_done: string
+          work_pending?: string | null
+        }
+        Update: {
+          ai_assistant_url?: string | null
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          google_doc_id?: string | null
+          google_doc_url?: string | null
+          id?: string
+          meeting_notes?: string | null
+          next_steps?: string | null
+          tags?: string[] | null
+          transcription_url?: string | null
+          updated_at?: string | null
+          user_id?: string
+          work_done?: string
+          work_pending?: string | null
+        }
+        Relationships: []
+      }
       mentions: {
         Row: {
           comment_id: string | null

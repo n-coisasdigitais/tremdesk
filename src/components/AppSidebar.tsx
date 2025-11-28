@@ -11,6 +11,7 @@ import {
   ChevronRight,
   KanbanSquare,
   Megaphone,
+  BookOpen,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -43,6 +44,10 @@ export function AppSidebar() {
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/kanban', label: 'Demandas', icon: KanbanSquare },
     { path: '/reports', label: 'Relatórios', icon: BarChart3 },
+  ];
+
+  const internalItems = [
+    { path: '/daylog', label: 'DayLog', icon: BookOpen },
   ];
 
   const adminItems = [
@@ -89,6 +94,31 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {(isAdmin || isTeamMember) && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Interno</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {internalItems.map((item) => (
+                  <SidebarMenuItem key={item.path}>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to={item.path}
+                        end
+                        className="flex items-center gap-3 px-3 py-2 rounded-md transition-colors hover:bg-muted"
+                        activeClassName="bg-primary/10 text-primary font-medium"
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {(isAdmin || isTeamMember) && (
           <SidebarGroup>

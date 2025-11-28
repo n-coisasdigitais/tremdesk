@@ -8,6 +8,9 @@ import Dashboard from "./pages/Dashboard";
 import Kanban from "./pages/Kanban";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import DayLog from "./pages/DayLog";
+import DayLogNew from "./pages/DayLogNew";
+import DayLogDetail from "./pages/DayLogDetail";
 import Users from "./pages/admin/Users";
 import Companies from "./pages/admin/Companies";
 import Teams from "./pages/admin/Teams";
@@ -29,6 +32,9 @@ const App = () => (
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/kanban" element={<ProtectedRoute><Kanban /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+          <Route path="/daylog" element={<ProtectedRoute><DayLog /></ProtectedRoute>} />
+          <Route path="/daylog/new" element={<ProtectedRoute><DayLogNew /></ProtectedRoute>} />
+          <Route path="/daylog/:id" element={<ProtectedRoute><DayLogDetail /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
           <Route path="/admin/companies" element={<ProtectedRoute><Companies /></ProtectedRoute>} />
