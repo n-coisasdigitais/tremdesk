@@ -100,6 +100,24 @@ export const useAuth = () => {
     return { error };
   };
 
+  const resetPassword = async (email: string) => {
+    const redirectUrl = `${window.location.origin}/auth/reset-password`;
+    
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl,
+    });
+    
+    return { data, error };
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+    
+    return { data, error };
+  };
+
   const hasRole = (role: AppRole): boolean => {
     return roles.some(r => r.role === role);
   };
@@ -118,6 +136,8 @@ export const useAuth = () => {
     signUp,
     signIn,
     signOut,
+    resetPassword,
+    updatePassword,
     hasRole,
     isAdmin,
     isTeamMember,
