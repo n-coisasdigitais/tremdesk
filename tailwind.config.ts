@@ -57,6 +57,12 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // N Coisas Digitais Brand Colors
+        ncoisas: {
+          lime: "hsl(var(--ncoisas-lime))",
+          dark: "hsl(var(--ncoisas-dark))",
+          champagne: "hsl(var(--ncoisas-champagne))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
