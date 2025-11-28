@@ -36,7 +36,7 @@ export function AnimatedLogo({ size = 'md', showAnimation = true, onAnimationCom
 
   return (
     <div className={`flex items-center gap-3 ${config.container}`}>
-      {/* Animated SVG Train Icon */}
+      {/* Animated SVG Train Icon - Boxy/Square Style */}
       <div className="relative flex-shrink-0">
         <svg
           width={config.svg}
@@ -45,62 +45,78 @@ export function AnimatedLogo({ size = 'md', showAnimation = true, onAnimationCom
           fill="none"
           className="train-svg"
         >
-          {/* Main body */}
-          <path
-            d="M8 32V18C8 14 11 12 14 12H34C37 12 40 14 40 18V32"
+          {/* Main cabin body - square */}
+          <rect
+            x="6"
+            y="14"
+            width="24"
+            height="18"
             className={`train-path ${animationPhase === 'drawing' ? 'animate-draw-line' : ''}`}
             stroke="currentColor"
             strokeWidth="2.5"
-            strokeLinecap="round"
             strokeLinejoin="round"
+            fill="none"
             style={{ animationDelay: '0s' }}
           />
           
-          {/* Roof curve */}
-          <path
-            d="M12 12C12 12 18 8 24 8C30 8 36 12 36 12"
+          {/* Front engine block - square */}
+          <rect
+            x="30"
+            y="18"
+            width="12"
+            height="14"
             className={`train-path ${animationPhase === 'drawing' ? 'animate-draw-line' : ''}`}
             stroke="currentColor"
             strokeWidth="2.5"
-            strokeLinecap="round"
             strokeLinejoin="round"
+            fill="none"
             style={{ animationDelay: '0.15s' }}
           />
           
-          {/* Chimney */}
-          <path
-            d="M16 8V4"
+          {/* Chimney - square */}
+          <rect
+            x="12"
+            y="4"
+            width="6"
+            height="10"
             className={`train-path ${animationPhase === 'drawing' ? 'animate-draw-line' : ''}`}
             stroke="currentColor"
             strokeWidth="2.5"
-            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
             style={{ animationDelay: '0.25s' }}
           />
           
           {/* Animated Smoke puffs */}
           <g className="smoke-animation">
-            <circle
-              cx="16"
-              cy="1"
-              r="1.5"
+            <rect
+              x="13"
+              y="-2"
+              width="4"
+              height="4"
+              rx="0.5"
               className="smoke-puff smoke-puff-1"
               stroke="currentColor"
-              strokeWidth="1"
+              strokeWidth="1.5"
               fill="none"
             />
-            <circle
-              cx="14"
-              cy="0"
-              r="1"
+            <rect
+              x="10"
+              y="-5"
+              width="3"
+              height="3"
+              rx="0.5"
               className="smoke-puff smoke-puff-2"
               stroke="currentColor"
               strokeWidth="1"
               fill="none"
             />
-            <circle
-              cx="18"
-              cy="-1"
-              r="1.2"
+            <rect
+              x="17"
+              y="-6"
+              width="3.5"
+              height="3.5"
+              rx="0.5"
               className="smoke-puff smoke-puff-3"
               stroke="currentColor"
               strokeWidth="1"
@@ -108,25 +124,25 @@ export function AnimatedLogo({ size = 'md', showAnimation = true, onAnimationCom
             />
           </g>
           
-          {/* Windows */}
+          {/* Window 1 - square */}
           <rect
-            x="14"
+            x="10"
             y="18"
             width="6"
             height="6"
-            rx="1"
             className={`train-path ${animationPhase === 'drawing' ? 'animate-draw-line' : ''}`}
             stroke="currentColor"
             strokeWidth="2"
             fill="none"
             style={{ animationDelay: '0.5s' }}
           />
+          
+          {/* Window 2 - square */}
           <rect
-            x="28"
+            x="20"
             y="18"
             width="6"
             height="6"
-            rx="1"
             className={`train-path ${animationPhase === 'drawing' ? 'animate-draw-line' : ''}`}
             stroke="currentColor"
             strokeWidth="2"
@@ -134,49 +150,50 @@ export function AnimatedLogo({ size = 'md', showAnimation = true, onAnimationCom
             style={{ animationDelay: '0.6s' }}
           />
           
-          {/* Front panel detail */}
-          <path
-            d="M22 20V26"
+          {/* Front headlight - square */}
+          <rect
+            x="34"
+            y="21"
+            width="4"
+            height="4"
             className={`train-path ${animationPhase === 'drawing' ? 'animate-draw-line' : ''}`}
             stroke="currentColor"
             strokeWidth="2"
-            strokeLinecap="round"
+            fill="none"
             style={{ animationDelay: '0.7s' }}
           />
-          <path
-            d="M26 20V26"
-            className={`train-path ${animationPhase === 'drawing' ? 'animate-draw-line' : ''}`}
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            style={{ animationDelay: '0.75s' }}
-          />
           
-          {/* Base line */}
+          {/* Base line / track */}
           <path
-            d="M4 36H44"
+            d="M2 38H46"
             className={`train-path ${animationPhase === 'drawing' ? 'animate-draw-line' : ''}`}
             stroke="currentColor"
             strokeWidth="2.5"
-            strokeLinecap="round"
+            strokeLinecap="square"
             style={{ animationDelay: '0.85s' }}
           />
           
-          {/* Wheels */}
-          <circle
-            cx="14"
-            cy="36"
-            r="4"
+          {/* Wheel 1 - square-ish (slightly rounded) */}
+          <rect
+            x="10"
+            y="32"
+            width="8"
+            height="8"
+            rx="2"
             className={`train-path wheel ${animationPhase === 'drawing' ? 'animate-draw-circle' : ''}`}
             stroke="currentColor"
             strokeWidth="2"
             fill="none"
             style={{ animationDelay: '1s' }}
           />
-          <circle
-            cx="34"
-            cy="36"
-            r="4"
+          
+          {/* Wheel 2 - square-ish */}
+          <rect
+            x="32"
+            y="32"
+            width="8"
+            height="8"
+            rx="2"
             className={`train-path wheel ${animationPhase === 'drawing' ? 'animate-draw-circle' : ''}`}
             stroke="currentColor"
             strokeWidth="2"
@@ -184,32 +201,37 @@ export function AnimatedLogo({ size = 'md', showAnimation = true, onAnimationCom
             style={{ animationDelay: '1.1s' }}
           />
           
-          {/* Wheel centers */}
-          <circle
-            cx="14"
-            cy="36"
-            r="1.5"
+          {/* Wheel 1 center */}
+          <rect
+            x="12"
+            y="34"
+            width="4"
+            height="4"
             className={`train-fill ${animationPhase === 'drawing' ? 'animate-fade-in-delayed' : ''}`}
             fill="currentColor"
             style={{ animationDelay: '1.2s' }}
           />
-          <circle
-            cx="34"
-            cy="36"
-            r="1.5"
+          
+          {/* Wheel 2 center */}
+          <rect
+            x="34"
+            y="34"
+            width="4"
+            height="4"
             className={`train-fill ${animationPhase === 'drawing' ? 'animate-fade-in-delayed' : ''}`}
             fill="currentColor"
             style={{ animationDelay: '1.3s' }}
           />
           
-          {/* Cowcatcher */}
+          {/* Cowcatcher - angular */}
           <path
-            d="M40 32L44 36L40 36"
+            d="M42 32H46V38H42"
             className={`train-path ${animationPhase === 'drawing' ? 'animate-draw-line' : ''}`}
             stroke="currentColor"
             strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            strokeLinecap="square"
+            strokeLinejoin="miter"
+            fill="none"
             style={{ animationDelay: '0.9s' }}
           />
         </svg>
@@ -244,62 +266,72 @@ export function StaticLogo({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
         fill="none"
         className="text-primary"
       >
-        {/* Main body */}
-        <path
-          d="M8 32V18C8 14 11 12 14 12H34C37 12 40 14 40 18V32"
+        {/* Main cabin body - square */}
+        <rect
+          x="6"
+          y="14"
+          width="24"
+          height="18"
           stroke="currentColor"
           strokeWidth="2.5"
-          strokeLinecap="round"
           strokeLinejoin="round"
+          fill="none"
         />
         
-        {/* Roof curve */}
-        <path
-          d="M12 12C12 12 18 8 24 8C30 8 36 12 36 12"
+        {/* Front engine block - square */}
+        <rect
+          x="30"
+          y="18"
+          width="12"
+          height="14"
           stroke="currentColor"
           strokeWidth="2.5"
-          strokeLinecap="round"
           strokeLinejoin="round"
+          fill="none"
         />
         
-        {/* Chimney */}
-        <path
-          d="M16 8V4"
+        {/* Chimney - square */}
+        <rect
+          x="12"
+          y="4"
+          width="6"
+          height="10"
           stroke="currentColor"
           strokeWidth="2.5"
-          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
         />
         
-        {/* Smoke puffs */}
-        <circle cx="16" cy="2" r="2" stroke="currentColor" strokeWidth="1.5" fill="none" />
-        <circle cx="12" cy="3" r="1.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        {/* Smoke puffs - square */}
+        <rect x="13" cy="0" width="4" height="4" rx="0.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        <rect x="9" y="-3" width="3" height="3" rx="0.5" stroke="currentColor" strokeWidth="1" fill="none" />
         
-        {/* Windows */}
-        <rect x="14" y="18" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="2" fill="none" />
-        <rect x="28" y="18" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="2" fill="none" />
+        {/* Windows - square */}
+        <rect x="10" y="18" width="6" height="6" stroke="currentColor" strokeWidth="2" fill="none" />
+        <rect x="20" y="18" width="6" height="6" stroke="currentColor" strokeWidth="2" fill="none" />
         
-        {/* Front panel detail */}
-        <path d="M22 20V26" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <path d="M26 20V26" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        {/* Front headlight */}
+        <rect x="34" y="21" width="4" height="4" stroke="currentColor" strokeWidth="2" fill="none" />
         
         {/* Base line */}
-        <path d="M4 36H44" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M2 38H46" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" />
         
-        {/* Wheels */}
-        <circle cx="14" cy="36" r="4" stroke="currentColor" strokeWidth="2" fill="none" />
-        <circle cx="34" cy="36" r="4" stroke="currentColor" strokeWidth="2" fill="none" />
+        {/* Wheels - square-ish */}
+        <rect x="10" y="32" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
+        <rect x="32" y="32" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
         
         {/* Wheel centers */}
-        <circle cx="14" cy="36" r="1.5" fill="currentColor" />
-        <circle cx="34" cy="36" r="1.5" fill="currentColor" />
+        <rect x="12" y="34" width="4" height="4" fill="currentColor" />
+        <rect x="34" y="34" width="4" height="4" fill="currentColor" />
         
         {/* Cowcatcher */}
         <path
-          d="M40 32L44 36L40 36"
+          d="M42 32H46V38H42"
           stroke="currentColor"
           strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          strokeLinecap="square"
+          strokeLinejoin="miter"
+          fill="none"
         />
       </svg>
       <span className={`font-bold tracking-tight ${config.text}`}>Trem Desk</span>
