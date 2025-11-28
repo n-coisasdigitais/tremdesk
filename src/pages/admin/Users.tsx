@@ -41,9 +41,15 @@ interface UserWithRole {
   full_name: string;
   avatar_url: string | null;
   roles: { role: string; company_id: string | null; company_name?: string }[];
+  teams?: { team_id: string; team_name: string }[];
 }
 
 interface Company {
+  id: string;
+  name: string;
+}
+
+interface Team {
   id: string;
   name: string;
 }
@@ -59,6 +65,7 @@ const Users = () => {
   const { isAdmin, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -83,11 +90,18 @@ const Users = () => {
   const [inviteFullName, setInviteFullName] = useState('');
   const [inviteRole, setInviteRole] = useState('');
   const [inviteCompany, setInviteCompany] = useState<string | null>(null);
+  const [inviteTeam, setInviteTeam] = useState<string | null>(null);
   const [isInviting, setIsInviting] = useState(false);
+
+  // Add to team dialog
+  const [isTeamDialogOpen, setIsTeamDialogOpen] = useState(false);
+  const [selectedUserForTeam, setSelectedUserForTeam] = useState<UserWithRole | null>(null);
+  const [newTeamId, setNewTeamId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
     fetchCompanies();
+    fetchTeams();
   }, []);
 
   const fetchUsers = async () => {
@@ -108,6 +122,13 @@ const Users = () => {
 
       if (rolesError) throw rolesError;
 
+      // Fetch all team memberships
+      const { data: teamMemberships, error: teamMembershipsError } = await supabase
+        .from('team_members')
+        .select('user_id, team_id');
+
+      if (teamMembershipsError) throw teamMembershipsError;
+
       // Fetch company names for roles
       const companyIds = [...new Set(roles?.filter(r => r.company_id).map(r => r.company_id))];
       let companiesMap: Record<string, string> = {};
@@ -123,7 +144,22 @@ const Users = () => {
         });
       }
 
-      // Combine profiles with roles
+      // Fetch team names
+      const teamIds = [...new Set(teamMemberships?.map(tm => tm.team_id))];
+      let teamsMap: Record<string, string> = {};
+      
+      if (teamIds.length > 0) {
+        const { data: teamsData } = await supabase
+          .from('teams')
+          .select('id, name')
+          .in('id', teamIds);
+        
+        teamsData?.forEach(t => {
+          teamsMap[t.id] = t.name;
+        });
+      }
+
+      // Combine profiles with roles and teams
       const usersWithRoles: UserWithRole[] = profiles?.map(profile => ({
         id: profile.id,
         full_name: profile.full_name,
@@ -134,6 +170,12 @@ const Users = () => {
             role: r.role,
             company_id: r.company_id,
             company_name: r.company_id ? companiesMap[r.company_id] : undefined,
+          })) || [],
+        teams: teamMemberships
+          ?.filter(tm => tm.user_id === profile.id)
+          .map(tm => ({
+            team_id: tm.team_id,
+            team_name: teamsMap[tm.team_id] || 'Equipe desconhecida',
           })) || [],
       })) || [];
 
@@ -156,6 +198,15 @@ const Users = () => {
       .order('name');
     
     if (data) setCompanies(data);
+  };
+
+  const fetchTeams = async () => {
+    const { data } = await supabase
+      .from('teams')
+      .select('id, name')
+      .order('name');
+    
+    if (data) setTeams(data);
   };
 
   const handleAddRole = async () => {
@@ -218,6 +269,62 @@ const Users = () => {
     } catch (error: any) {
       toast({
         title: 'Erro ao remover função',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleRemoveTeamMember = async (userId: string, teamId: string) => {
+    try {
+      const { error } = await supabase
+        .from('team_members')
+        .delete()
+        .eq('user_id', userId)
+        .eq('team_id', teamId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Removido da equipe',
+        description: 'O usuário foi removido da equipe.',
+      });
+
+      fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao remover da equipe',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleAddToTeam = async () => {
+    if (!selectedUserForTeam || !newTeamId) return;
+
+    try {
+      const { error } = await supabase
+        .from('team_members')
+        .insert({
+          user_id: selectedUserForTeam.id,
+          team_id: newTeamId,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Adicionado à equipe',
+        description: 'O usuário foi adicionado à equipe.',
+      });
+
+      setIsTeamDialogOpen(false);
+      setSelectedUserForTeam(null);
+      setNewTeamId(null);
+      fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao adicionar à equipe',
         description: error.message,
         variant: 'destructive',
       });
@@ -341,6 +448,14 @@ const Users = () => {
           });
         }
 
+        // Add to team if team_member role and team selected
+        if (inviteRole === 'team_member' && inviteTeam) {
+          await supabase.from('team_members').insert({
+            user_id: data.user.id,
+            team_id: inviteTeam,
+          });
+        }
+
         toast({
           title: 'Usuário convidado',
           description: `Um email de confirmação foi enviado para ${inviteEmail}.`,
@@ -351,6 +466,7 @@ const Users = () => {
         setInviteFullName('');
         setInviteRole('');
         setInviteCompany(null);
+        setInviteTeam(null);
         fetchUsers();
       }
     } catch (error: any) {
@@ -448,7 +564,7 @@ const Users = () => {
 
                 {(inviteRole === 'client_admin' || inviteRole === 'client_user') && (
                   <div className="space-y-2">
-                    <Label>Empresa</Label>
+                    <Label>Empresa *</Label>
                     <Select 
                       value={inviteCompany || ''} 
                       onValueChange={(v) => setInviteCompany(v || null)}
@@ -464,6 +580,30 @@ const Users = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                )}
+
+                {inviteRole === 'team_member' && (
+                  <div className="space-y-2">
+                    <Label>Equipe</Label>
+                    <Select 
+                      value={inviteTeam || ''} 
+                      onValueChange={(v) => setInviteTeam(v || null)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma equipe" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {teams.map((team) => (
+                          <SelectItem key={team.id} value={team.id}>
+                            {team.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      A equipe determina quais empresas/clientes o usuário pode acessar.
+                    </p>
                   </div>
                 )}
               </div>
@@ -511,6 +651,7 @@ const Users = () => {
                   <TableRow>
                     <TableHead>Usuário</TableHead>
                     <TableHead>Funções</TableHead>
+                    <TableHead>Equipes</TableHead>
                     <TableHead className="w-[140px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -544,6 +685,27 @@ const Users = () => {
                               >
                                 {roleLabels[r.role]}
                                 {r.company_name && ` (${r.company_name})`}
+                                <Trash2 className="h-3 w-3 ml-1 hidden group-hover:inline" />
+                              </Badge>
+                            ))
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {(!user.teams || user.teams.length === 0) ? (
+                            <span className="text-muted-foreground text-sm">
+                              Nenhuma equipe
+                            </span>
+                          ) : (
+                            user.teams.map((t, idx) => (
+                              <Badge
+                                key={idx}
+                                variant="outline"
+                                className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground group"
+                                onClick={() => handleRemoveTeamMember(user.id, t.team_id)}
+                              >
+                                {t.team_name}
                                 <Trash2 className="h-3 w-3 ml-1 hidden group-hover:inline" />
                               </Badge>
                             ))
@@ -631,6 +793,62 @@ const Users = () => {
                                   Cancelar
                                 </Button>
                                 <Button onClick={handleAddRole} disabled={!newRole}>
+                                  Adicionar
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                          
+                          {/* Add to Team Button */}
+                          <Dialog 
+                            open={isTeamDialogOpen && selectedUserForTeam?.id === user.id} 
+                            onOpenChange={(open) => {
+                              setIsTeamDialogOpen(open);
+                              if (!open) {
+                                setSelectedUserForTeam(null);
+                                setNewTeamId(null);
+                              }
+                            }}
+                          >
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedUserForTeam(user)}
+                                title="Adicionar à equipe"
+                              >
+                                <UsersIcon className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Adicionar à Equipe</DialogTitle>
+                                <DialogDescription>
+                                  Adicione {user.full_name} a uma equipe.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                  <Label>Equipe</Label>
+                                  <Select value={newTeamId || ''} onValueChange={(v) => setNewTeamId(v || null)}>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Selecione uma equipe" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {teams.filter(t => !user.teams?.some(ut => ut.team_id === t.id)).map((team) => (
+                                        <SelectItem key={team.id} value={team.id}>
+                                          {team.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <DialogFooter>
+                                <Button variant="outline" onClick={() => setIsTeamDialogOpen(false)}>
+                                  Cancelar
+                                </Button>
+                                <Button onClick={handleAddToTeam} disabled={!newTeamId}>
                                   Adicionar
                                 </Button>
                               </DialogFooter>
