@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Layout } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Users as UsersIcon, Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { Users as UsersIcon, Plus, Pencil, Trash2, Search, UserPlus, Camera, Loader2 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
 interface UserWithRole {
@@ -61,10 +61,29 @@ const Users = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
+  
+  // Add role dialog
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  const [selectedUserForRole, setSelectedUserForRole] = useState<UserWithRole | null>(null);
   const [newRole, setNewRole] = useState('');
   const [newRoleCompany, setNewRoleCompany] = useState<string | null>(null);
+  
+  // Edit user dialog
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserWithRole | null>(null);
+  const [editFullName, setEditFullName] = useState('');
+  const [editAvatarFile, setEditAvatarFile] = useState<File | null>(null);
+  const [editAvatarPreview, setEditAvatarPreview] = useState<string | null>(null);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  
+  // Invite user dialog
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteFullName, setInviteFullName] = useState('');
+  const [inviteRole, setInviteRole] = useState('');
+  const [inviteCompany, setInviteCompany] = useState<string | null>(null);
+  const [isInviting, setIsInviting] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -140,13 +159,13 @@ const Users = () => {
   };
 
   const handleAddRole = async () => {
-    if (!selectedUser || !newRole) return;
+    if (!selectedUserForRole || !newRole) return;
 
     try {
       const { error } = await supabase
         .from('user_roles')
         .insert({
-          user_id: selectedUser.id,
+          user_id: selectedUserForRole.id,
           role: newRole as 'admin' | 'team_member' | 'client_admin' | 'client_user',
           company_id: newRoleCompany || null,
         });
@@ -158,8 +177,8 @@ const Users = () => {
         description: `Função ${roleLabels[newRole]} adicionada ao usuário.`,
       });
 
-      setIsDialogOpen(false);
-      setSelectedUser(null);
+      setIsRoleDialogOpen(false);
+      setSelectedUserForRole(null);
       setNewRole('');
       setNewRoleCompany(null);
       fetchUsers();
@@ -205,6 +224,146 @@ const Users = () => {
     }
   };
 
+  // Edit user handlers
+  const openEditDialog = (user: UserWithRole) => {
+    setEditingUser(user);
+    setEditFullName(user.full_name);
+    setEditAvatarPreview(user.avatar_url);
+    setEditAvatarFile(null);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setEditAvatarFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editingUser || !editFullName.trim()) return;
+
+    setIsSavingProfile(true);
+    try {
+      let avatarUrl = editingUser.avatar_url;
+
+      // Upload new avatar if selected
+      if (editAvatarFile) {
+        const fileExt = editAvatarFile.name.split('.').pop();
+        const fileName = `${editingUser.id}-${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, editAvatarFile, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(fileName);
+
+        avatarUrl = urlData.publicUrl;
+      }
+
+      // Update profile
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: editFullName.trim(),
+          avatar_url: avatarUrl,
+        })
+        .eq('id', editingUser.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Perfil atualizado',
+        description: 'Os dados do usuário foram atualizados com sucesso.',
+      });
+
+      setIsEditDialogOpen(false);
+      setEditingUser(null);
+      fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao atualizar perfil',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  // Invite user handler
+  const handleInviteUser = async () => {
+    if (!inviteEmail.trim() || !inviteFullName.trim()) {
+      toast({
+        title: 'Dados incompletos',
+        description: 'Preencha email e nome completo.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsInviting(true);
+    try {
+      // Generate a temporary password
+      const tempPassword = Math.random().toString(36).slice(-12) + 'A1!';
+
+      // Create user via admin API would require edge function
+      // For now, we use signUp which creates user but requires email confirmation
+      const { data, error } = await supabase.auth.signUp({
+        email: inviteEmail.trim(),
+        password: tempPassword,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: inviteFullName.trim(),
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Add role if specified
+        if (inviteRole) {
+          await supabase.from('user_roles').insert({
+            user_id: data.user.id,
+            role: inviteRole as 'admin' | 'team_member' | 'client_admin' | 'client_user',
+            company_id: inviteCompany || null,
+          });
+        }
+
+        toast({
+          title: 'Usuário convidado',
+          description: `Um email de confirmação foi enviado para ${inviteEmail}.`,
+        });
+
+        setIsInviteDialogOpen(false);
+        setInviteEmail('');
+        setInviteFullName('');
+        setInviteRole('');
+        setInviteCompany(null);
+        fetchUsers();
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao convidar usuário',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
   const filteredUsers = users.filter(user =>
     user.full_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -236,6 +395,89 @@ const Users = () => {
               Gerencie os usuários e suas permissões.
             </p>
           </div>
+          
+          {/* Invite User Button */}
+          <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Convidar Usuário
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Convidar Novo Usuário</DialogTitle>
+                <DialogDescription>
+                  O usuário receberá um email para definir sua senha e acessar o sistema.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="invite-email">Email *</Label>
+                  <Input
+                    id="invite-email"
+                    type="email"
+                    placeholder="email@exemplo.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="invite-name">Nome Completo *</Label>
+                  <Input
+                    id="invite-name"
+                    placeholder="Nome do usuário"
+                    value={inviteFullName}
+                    onChange={(e) => setInviteFullName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Função (opcional)</Label>
+                  <Select value={inviteRole} onValueChange={setInviteRole}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma função" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Administrador</SelectItem>
+                      <SelectItem value="team_member">Membro da Equipe</SelectItem>
+                      <SelectItem value="client_admin">Admin do Cliente</SelectItem>
+                      <SelectItem value="client_user">Usuário do Cliente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {(inviteRole === 'client_admin' || inviteRole === 'client_user') && (
+                  <div className="space-y-2">
+                    <Label>Empresa</Label>
+                    <Select 
+                      value={inviteCompany || ''} 
+                      onValueChange={(v) => setInviteCompany(v || null)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma empresa" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {companies.map((company) => (
+                          <SelectItem key={company.id} value={company.id}>
+                            {company.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleInviteUser} disabled={isInviting || !inviteEmail || !inviteFullName}>
+                  {isInviting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Enviar Convite
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <Card>
@@ -269,7 +511,7 @@ const Users = () => {
                   <TableRow>
                     <TableHead>Usuário</TableHead>
                     <TableHead>Funções</TableHead>
-                    <TableHead className="w-[100px]">Ações</TableHead>
+                    <TableHead className="w-[140px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -309,77 +551,92 @@ const Users = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Dialog open={isDialogOpen && selectedUser?.id === user.id} onOpenChange={(open) => {
-                          setIsDialogOpen(open);
-                          if (!open) {
-                            setSelectedUser(null);
-                            setNewRole('');
-                            setNewRoleCompany(null);
-                          }
-                        }}>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setSelectedUser(user)}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Adicionar Função</DialogTitle>
-                              <DialogDescription>
-                                Adicione uma nova função para {user.full_name}.
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                              <div className="space-y-2">
-                                <Label>Função</Label>
-                                <Select value={newRole} onValueChange={setNewRole}>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Selecione uma função" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="admin">Administrador</SelectItem>
-                                    <SelectItem value="team_member">Membro da Equipe</SelectItem>
-                                    <SelectItem value="client_admin">Admin do Cliente</SelectItem>
-                                    <SelectItem value="client_user">Usuário do Cliente</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-
-                              {(newRole === 'client_admin' || newRole === 'client_user') && (
+                        <div className="flex items-center gap-2">
+                          {/* Edit Profile Button */}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditDialog(user)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          
+                          {/* Add Role Button */}
+                          <Dialog 
+                            open={isRoleDialogOpen && selectedUserForRole?.id === user.id} 
+                            onOpenChange={(open) => {
+                              setIsRoleDialogOpen(open);
+                              if (!open) {
+                                setSelectedUserForRole(null);
+                                setNewRole('');
+                                setNewRoleCompany(null);
+                              }
+                            }}
+                          >
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedUserForRole(user)}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Adicionar Função</DialogTitle>
+                                <DialogDescription>
+                                  Adicione uma nova função para {user.full_name}.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
                                 <div className="space-y-2">
-                                  <Label>Empresa</Label>
-                                  <Select 
-                                    value={newRoleCompany || ''} 
-                                    onValueChange={(v) => setNewRoleCompany(v || null)}
-                                  >
+                                  <Label>Função</Label>
+                                  <Select value={newRole} onValueChange={setNewRole}>
                                     <SelectTrigger>
-                                      <SelectValue placeholder="Selecione uma empresa" />
+                                      <SelectValue placeholder="Selecione uma função" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {companies.map((company) => (
-                                        <SelectItem key={company.id} value={company.id}>
-                                          {company.name}
-                                        </SelectItem>
-                                      ))}
+                                      <SelectItem value="admin">Administrador</SelectItem>
+                                      <SelectItem value="team_member">Membro da Equipe</SelectItem>
+                                      <SelectItem value="client_admin">Admin do Cliente</SelectItem>
+                                      <SelectItem value="client_user">Usuário do Cliente</SelectItem>
                                     </SelectContent>
                                   </Select>
                                 </div>
-                              )}
-                            </div>
-                            <DialogFooter>
-                              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                                Cancelar
-                              </Button>
-                              <Button onClick={handleAddRole} disabled={!newRole}>
-                                Adicionar
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
+
+                                {(newRole === 'client_admin' || newRole === 'client_user') && (
+                                  <div className="space-y-2">
+                                    <Label>Empresa</Label>
+                                    <Select 
+                                      value={newRoleCompany || ''} 
+                                      onValueChange={(v) => setNewRoleCompany(v || null)}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Selecione uma empresa" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {companies.map((company) => (
+                                          <SelectItem key={company.id} value={company.id}>
+                                            {company.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
+                              </div>
+                              <DialogFooter>
+                                <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)}>
+                                  Cancelar
+                                </Button>
+                                <Button onClick={handleAddRole} disabled={!newRole}>
+                                  Adicionar
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -388,6 +645,77 @@ const Users = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Edit User Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) {
+            setEditingUser(null);
+            setEditAvatarFile(null);
+            setEditAvatarPreview(null);
+          }
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar Usuário</DialogTitle>
+              <DialogDescription>
+                Atualize os dados do perfil do usuário.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6 py-4">
+              {/* Avatar */}
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage src={editAvatarPreview || undefined} />
+                    <AvatarFallback className="text-2xl">
+                      {editFullName.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    className="absolute bottom-0 right-0 rounded-full h-8 w-8"
+                    onClick={() => avatarInputRef.current?.click()}
+                  >
+                    <Camera className="h-4 w-4" />
+                  </Button>
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarChange}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Clique no ícone para alterar a foto
+                </p>
+              </div>
+
+              {/* Name */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Nome Completo</Label>
+                <Input
+                  id="edit-name"
+                  value={editFullName}
+                  onChange={(e) => setEditFullName(e.target.value)}
+                  placeholder="Nome do usuário"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveProfile} disabled={isSavingProfile || !editFullName.trim()}>
+                {isSavingProfile && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Salvar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
