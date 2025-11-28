@@ -18,6 +18,7 @@ import {
   useSensor,
   useSensors,
   closestCorners,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -140,6 +141,10 @@ interface KanbanColumnProps {
 
 const KanbanColumn = ({ status, tickets, onTicketClick }: KanbanColumnProps) => {
   const config = statusConfig[status];
+  
+  const { setNodeRef, isOver } = useDroppable({
+    id: status,
+  });
 
   return (
     <div className="flex flex-col min-w-[280px] max-w-[320px]">
@@ -154,7 +159,10 @@ const KanbanColumn = ({ status, tickets, onTicketClick }: KanbanColumnProps) => 
       </div>
 
       <SortableContext items={tickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
-        <div className={`flex-1 p-2 space-y-3 min-h-[400px] rounded-b-lg border-x border-b ${config.bgColor}`}>
+        <div 
+          ref={setNodeRef}
+          className={`flex-1 p-2 space-y-3 min-h-[400px] rounded-b-lg border-x border-b transition-colors ${config.bgColor} ${isOver ? 'ring-2 ring-primary ring-inset' : ''}`}
+        >
           {tickets.map((ticket) => (
             <DraggableTicketCard
               key={ticket.id}
@@ -207,17 +215,17 @@ export default function Kanban() {
     const ticket = tickets.find((t) => t.id === ticketId);
     if (!ticket) return;
 
-    // Find which column the ticket was dropped in
-    const overTicket = tickets.find((t) => t.id === over.id);
     let newStatus: TicketStatus | null = null;
 
-    if (overTicket) {
-      newStatus = overTicket.status;
+    // Check if dropped on a column (status)
+    const columnStatus = columns.find((col) => col === over.id);
+    if (columnStatus) {
+      newStatus = columnStatus;
     } else {
-      // Dropped in empty column - find by over.id which is column status
-      const columnStatus = columns.find((col) => col === over.id);
-      if (columnStatus) {
-        newStatus = columnStatus;
+      // Dropped on another ticket - get that ticket's status
+      const overTicket = tickets.find((t) => t.id === over.id);
+      if (overTicket) {
+        newStatus = overTicket.status;
       }
     }
 
