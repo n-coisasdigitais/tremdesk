@@ -329,15 +329,17 @@ export default function Reports() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsList className={`grid w-full max-w-md ${(isAdmin || isTeamMember) ? 'grid-cols-2' : 'grid-cols-1'}`}>
             <TabsTrigger value="demandas" className="gap-2">
               <ClipboardList className="h-4 w-4" />
               Demandas
             </TabsTrigger>
-            <TabsTrigger value="daylogs" className="gap-2">
-              <FileText className="h-4 w-4" />
-              DayLogs
-            </TabsTrigger>
+            {(isAdmin || isTeamMember) && (
+              <TabsTrigger value="daylogs" className="gap-2">
+                <FileText className="h-4 w-4" />
+                DayLogs
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* DEMANDAS TAB */}
@@ -570,21 +572,23 @@ export default function Reports() {
             </div>
           </TabsContent>
 
-          {/* DAYLOGS TAB */}
+          {/* DAYLOGS TAB - Only visible for admin and team_member */}
+          {(isAdmin || isTeamMember) && (
           <TabsContent value="daylogs" className="space-y-6">
             <div className="flex justify-end">
-              <Button onClick={exportDayLogCSV} variant="outline">
+              <Button onClick={exportDayLogCSV} variant="outline" size="sm">
                 <Download className="mr-2 h-4 w-4" />
-                Exportar CSV
+                <span className="hidden sm:inline">Exportar CSV</span>
+                <span className="sm:hidden">CSV</span>
               </Button>
             </div>
 
             {/* DayLog Filters */}
             <Card>
               <CardContent className="pt-6">
-                <div className="flex flex-wrap gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   <Select value={selectedUser} onValueChange={setSelectedUser}>
-                    <SelectTrigger className="w-48">
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Usuário" />
                     </SelectTrigger>
                     <SelectContent>
@@ -598,7 +602,7 @@ export default function Reports() {
                   </Select>
 
                   <Select value={selectedTag} onValueChange={setSelectedTag}>
-                    <SelectTrigger className="w-48">
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Tag" />
                     </SelectTrigger>
                     <SelectContent>
@@ -613,20 +617,22 @@ export default function Reports() {
 
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-64 justify-start text-left">
-                        <Calendar className="mr-2 h-4 w-4" />
-                        {daylogDateRange?.from ? (
-                          daylogDateRange.to ? (
-                            <>
-                              {format(daylogDateRange.from, 'dd/MM/yy', { locale: ptBR })} -{' '}
-                              {format(daylogDateRange.to, 'dd/MM/yy', { locale: ptBR })}
-                            </>
+                      <Button variant="outline" className="w-full justify-start text-left">
+                        <Calendar className="mr-2 h-4 w-4 shrink-0" />
+                        <span className="truncate">
+                          {daylogDateRange?.from ? (
+                            daylogDateRange.to ? (
+                              <>
+                                {format(daylogDateRange.from, 'dd/MM/yy', { locale: ptBR })} -{' '}
+                                {format(daylogDateRange.to, 'dd/MM/yy', { locale: ptBR })}
+                              </>
+                            ) : (
+                              format(daylogDateRange.from, 'dd/MM/yy', { locale: ptBR })
+                            )
                           ) : (
-                            format(daylogDateRange.from, 'dd/MM/yy', { locale: ptBR })
-                          )
-                        ) : (
-                          'Selecionar período'
-                        )}
+                            'Selecionar período'
+                          )}
+                        </span>
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -636,7 +642,7 @@ export default function Reports() {
                         defaultMonth={daylogDateRange?.from}
                         selected={daylogDateRange}
                         onSelect={setDaylogDateRange}
-                        numberOfMonths={2}
+                        numberOfMonths={1}
                         locale={ptBR}
                       />
                     </PopoverContent>
@@ -646,48 +652,48 @@ export default function Reports() {
             </Card>
 
             {/* DayLog Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Total de Registros</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Total</CardTitle>
+                  <FileText className="h-4 w-4 text-muted-foreground hidden sm:block" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{daylogMetrics.totalLogs}</div>
-                  <p className="text-xs text-muted-foreground">No período selecionado</p>
+                <CardContent className="pt-0">
+                  <div className="text-xl sm:text-2xl font-bold">{daylogMetrics.totalLogs}</div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">No período</p>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Usuários Ativos</CardTitle>
-                  <User className="h-4 w-4 text-blue-500" />
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Usuários</CardTitle>
+                  <User className="h-4 w-4 text-blue-500 hidden sm:block" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{daylogMetrics.uniqueUsers}</div>
-                  <p className="text-xs text-muted-foreground">Com registros no período</p>
+                <CardContent className="pt-0">
+                  <div className="text-xl sm:text-2xl font-bold">{daylogMetrics.uniqueUsers}</div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">Ativos</p>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Com Pendências</CardTitle>
-                  <Clock className="h-4 w-4 text-orange-500" />
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Pendências</CardTitle>
+                  <Clock className="h-4 w-4 text-orange-500 hidden sm:block" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{daylogMetrics.logsWithPending}</div>
-                  <p className="text-xs text-muted-foreground">Registros com trabalho pendente</p>
+                <CardContent className="pt-0">
+                  <div className="text-xl sm:text-2xl font-bold">{daylogMetrics.logsWithPending}</div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">Com pendente</p>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Com Próx. Passos</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-green-500" />
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Próx. Passos</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-green-500 hidden sm:block" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{daylogMetrics.logsWithNextSteps}</div>
-                  <p className="text-xs text-muted-foreground">Com planejamento definido</p>
+                <CardContent className="pt-0">
+                  <div className="text-xl sm:text-2xl font-bold">{daylogMetrics.logsWithNextSteps}</div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">Planejado</p>
                 </CardContent>
               </Card>
             </div>
@@ -720,7 +726,7 @@ export default function Reports() {
             )}
 
             {/* DayLog Lists */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-4 lg:gap-6">
               {/* O que foi feito */}
               <Card>
                 <CardHeader>
@@ -878,6 +884,7 @@ export default function Reports() {
               </Card>
             </div>
           </TabsContent>
+          )}
         </Tabs>
       </div>
     </Layout>
