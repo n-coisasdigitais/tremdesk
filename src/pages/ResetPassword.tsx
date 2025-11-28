@@ -25,14 +25,30 @@ export default function ResetPassword() {
   useEffect(() => {
     // Check if we have a valid recovery session
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      // Listen for password recovery event
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          console.log('Auth event:', event, session);
+          if (event === 'PASSWORD_RECOVERY') {
+            setIsValidSession(true);
+            setIsChecking(false);
+          } else if (event === 'SIGNED_IN' && session) {
+            setIsValidSession(true);
+            setIsChecking(false);
+          }
+        }
+      );
+
       // Check URL for recovery token (Supabase adds this on redirect)
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = hashParams.get('access_token');
       const type = hashParams.get('type');
       
-      if (type === 'recovery' && accessToken) {
+      // Also check query params (some Supabase versions use query params)
+      const queryParams = new URLSearchParams(window.location.search);
+      const queryType = queryParams.get('type');
+      
+      if ((type === 'recovery' || queryType === 'recovery') && accessToken) {
         // Set the session from the recovery token
         const { error } = await supabase.auth.setSession({
           access_token: accessToken,
@@ -42,11 +58,17 @@ export default function ResetPassword() {
         if (!error) {
           setIsValidSession(true);
         }
-      } else if (session) {
-        setIsValidSession(true);
+        setIsChecking(false);
+      } else {
+        // Check for existing session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setIsValidSession(true);
+        }
+        setIsChecking(false);
       }
-      
-      setIsChecking(false);
+
+      return () => subscription.unsubscribe();
     };
     
     checkSession();
