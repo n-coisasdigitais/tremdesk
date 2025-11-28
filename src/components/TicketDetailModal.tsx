@@ -293,10 +293,10 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            <span className="flex-1">{ticket.title}</span>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col my-8" aria-describedby={undefined}>
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle className="flex items-center gap-3 pr-8">
+            <span className="flex-1 truncate">{ticket.title}</span>
             <Badge className={priorityConfig[ticket.priority].color}>
               {priorityConfig[ticket.priority].label}
             </Badge>
