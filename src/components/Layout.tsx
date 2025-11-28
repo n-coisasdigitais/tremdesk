@@ -247,6 +247,24 @@ export const Layout = ({ children }: LayoutProps) => {
           <main className="flex-1 p-6 overflow-auto">
             {children}
           </main>
+
+          {/* Footer */}
+          <footer className="border-t bg-background/95 py-4 px-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+              <p>© {new Date().getFullYear()} Trem Desk. Todos os direitos reservados.</p>
+              <p>
+                Desenvolvido por{' '}
+                <a 
+                  href="https://www.ncoisas.digital" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-ncoisas-lime hover:underline font-medium"
+                >
+                  N Coisas Digitais
+                </a>
+              </p>
+            </div>
+          </footer>
         </div>
       </div>
     </SidebarProvider>
