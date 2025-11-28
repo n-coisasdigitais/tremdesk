@@ -420,55 +420,38 @@ const Users = () => {
 
     setIsInviting(true);
     try {
-      // Generate a temporary password
-      const tempPassword = Math.random().toString(36).slice(-12) + 'A1!';
-
-      // Create user via admin API would require edge function
-      // For now, we use signUp which creates user but requires email confirmation
-      const { data, error } = await supabase.auth.signUp({
-        email: inviteEmail.trim(),
-        password: tempPassword,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            full_name: inviteFullName.trim(),
-          },
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke('invite-user', {
+        body: {
+          email: inviteEmail.trim(),
+          fullName: inviteFullName.trim(),
+          role: inviteRole || null,
+          companyId: inviteCompany || null,
+          teamId: inviteTeam || null,
         },
       });
 
-      if (error) throw error;
-
-      if (data.user) {
-        // Add role if specified
-        if (inviteRole) {
-          await supabase.from('user_roles').insert({
-            user_id: data.user.id,
-            role: inviteRole as 'admin' | 'team_member' | 'client_admin' | 'client_user',
-            company_id: inviteCompany || null,
-          });
-        }
-
-        // Add to team if team_member role and team selected
-        if (inviteRole === 'team_member' && inviteTeam) {
-          await supabase.from('team_members').insert({
-            user_id: data.user.id,
-            team_id: inviteTeam,
-          });
-        }
-
-        toast({
-          title: 'Usuário convidado',
-          description: `Um email de confirmação foi enviado para ${inviteEmail}.`,
-        });
-
-        setIsInviteDialogOpen(false);
-        setInviteEmail('');
-        setInviteFullName('');
-        setInviteRole('');
-        setInviteCompany(null);
-        setInviteTeam(null);
-        fetchUsers();
+      if (response.error) {
+        throw new Error(response.error.message || 'Erro ao convidar usuário');
       }
+
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+
+      toast({
+        title: 'Usuário convidado',
+        description: response.data?.message || `Um email foi enviado para ${inviteEmail} com instruções para definir a senha.`,
+      });
+
+      setIsInviteDialogOpen(false);
+      setInviteEmail('');
+      setInviteFullName('');
+      setInviteRole('');
+      setInviteCompany(null);
+      setInviteTeam(null);
+      fetchUsers();
     } catch (error: any) {
       toast({
         title: 'Erro ao convidar usuário',
