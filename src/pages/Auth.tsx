@@ -144,13 +144,13 @@ export default function Auth() {
 
   if (showResetForm) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-secondary/20 to-background p-4">
-        <Card className="w-full max-w-md">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-ncoisas-dark p-4">
+        <Card className="w-full max-w-md border-border/50 bg-card/95 backdrop-blur-sm">
           <CardHeader className="space-y-2 pb-4">
             <div className="flex flex-col items-center gap-3">
               <AnimatedLogo size="lg" />
             </div>
-            <CardDescription className="text-center text-sm">
+            <CardDescription className="text-center text-sm text-muted-foreground">
               Recuperar senha
             </CardDescription>
           </CardHeader>
@@ -166,12 +166,13 @@ export default function Auth() {
                   onChange={(e) => setResetEmail(e.target.value)}
                   required
                   disabled={isLoading}
+                  className="border-border/50 bg-background/50"
                 />
                 <p className="text-xs text-muted-foreground">
                   Enviaremos um link para você redefinir sua senha.
                 </p>
               </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={isLoading}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -194,26 +195,40 @@ export default function Auth() {
             </form>
           </CardContent>
         </Card>
+        
+        {/* N Coisas Digitais Branding */}
+        <div className="mt-8 flex flex-col items-center gap-2">
+          <span className="text-xs text-muted-foreground/60">desenvolvido por</span>
+          <a 
+            href="https://www.ncoisas.digital" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="group flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+          >
+            <span className="text-primary">✦</span>
+            <span>N Coisas Digitais</span>
+          </a>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-secondary/20 to-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-ncoisas-dark p-4">
+      <Card className="w-full max-w-md border-border/50 bg-card/95 backdrop-blur-sm">
         <CardHeader className="space-y-2 pb-4">
           <div className="flex flex-col items-center gap-3">
             <AnimatedLogo size="lg" />
           </div>
-          <CardDescription className="text-center text-sm">
+          <CardDescription className="text-center text-sm text-muted-foreground">
             O trem de gestão de demandas que funciona, uai!
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="signup">Cadastro</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 bg-secondary/50">
+              <TabsTrigger value="login" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Login</TabsTrigger>
+              <TabsTrigger value="signup" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Cadastro</TabsTrigger>
             </TabsList>
             
             <TabsContent value="login">
@@ -228,6 +243,7 @@ export default function Auth() {
                     onChange={(e) => setLoginEmail(e.target.value)}
                     required
                     disabled={isLoading}
+                    className="border-border/50 bg-background/50"
                   />
                 </div>
                 <div className="space-y-2">
@@ -249,9 +265,10 @@ export default function Auth() {
                     onChange={(e) => setLoginPassword(e.target.value)}
                     required
                     disabled={isLoading}
+                    className="border-border/50 bg-background/50"
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={isLoading}>
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -276,6 +293,7 @@ export default function Auth() {
                     onChange={(e) => setSignupName(e.target.value)}
                     required
                     disabled={isLoading}
+                    className="border-border/50 bg-background/50"
                   />
                 </div>
                 <div className="space-y-2">
@@ -288,6 +306,7 @@ export default function Auth() {
                     onChange={(e) => setSignupEmail(e.target.value)}
                     required
                     disabled={isLoading}
+                    className="border-border/50 bg-background/50"
                   />
                 </div>
                 <div className="space-y-2">
@@ -301,10 +320,11 @@ export default function Auth() {
                     required
                     disabled={isLoading}
                     minLength={6}
+                    className="border-border/50 bg-background/50"
                   />
                   <p className="text-xs text-muted-foreground">Mínimo de 6 caracteres</p>
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={isLoading}>
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -319,6 +339,20 @@ export default function Auth() {
           </Tabs>
         </CardContent>
       </Card>
+      
+      {/* N Coisas Digitais Branding */}
+      <div className="mt-8 flex flex-col items-center gap-2">
+        <span className="text-xs text-muted-foreground/60">desenvolvido por</span>
+        <a 
+          href="https://www.ncoisas.digital" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="group flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+        >
+          <span className="text-primary">✦</span>
+          <span>N Coisas Digitais</span>
+        </a>
+      </div>
     </div>
   );
 }
