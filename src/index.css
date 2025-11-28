@@ -10,97 +10,95 @@ All colors MUST be HSL.
   :root {
     /* N Coisas Digitais Light Theme */
     --background: 0 0% 98%;
-    --foreground: 0 0% 8%;
+    --foreground: 0 0% 26%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 8%;
+    --card-foreground: 0 0% 26%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 8%;
+    --popover-foreground: 0 0% 26%;
 
-    /* Verde Lime N Coisas */
-    --primary: 116 70% 55%;
-    --primary-foreground: 0 0% 8%;
+    /* Verde N Coisas #C7D423 */
+    --primary: 66 75% 49%;
+    --primary-foreground: 0 0% 26%;
 
     --secondary: 0 0% 94%;
-    --secondary-foreground: 0 0% 8%;
+    --secondary-foreground: 0 0% 26%;
 
     --muted: 0 0% 94%;
     --muted-foreground: 0 0% 45%;
 
-    /* Accent - Dourado/Champagne N Coisas */
-    --accent: 40 55% 65%;
-    --accent-foreground: 0 0% 8%;
+    /* Accent - Verde N Coisas variante */
+    --accent: 66 65% 60%;
+    --accent-foreground: 0 0% 26%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 0 0% 88%;
     --input: 0 0% 88%;
-    --ring: 116 70% 55%;
+    --ring: 66 75% 49%;
 
     --radius: 0.5rem;
 
-    /* N Coisas Brand Colors */
-    --ncoisas-lime: 116 70% 55%;
-    --ncoisas-dark: 0 0% 8%;
-    --ncoisas-champagne: 40 55% 65%;
+    /* N Coisas Brand Colors - #C7D423 e #434343 */
+    --ncoisas-lime: 66 75% 49%;
+    --ncoisas-dark: 0 0% 26%;
 
     --sidebar-background: 0 0% 96%;
-    --sidebar-foreground: 0 0% 20%;
-    --sidebar-primary: 116 70% 55%;
-    --sidebar-primary-foreground: 0 0% 8%;
+    --sidebar-foreground: 0 0% 26%;
+    --sidebar-primary: 66 75% 49%;
+    --sidebar-primary-foreground: 0 0% 26%;
     --sidebar-accent: 0 0% 92%;
-    --sidebar-accent-foreground: 0 0% 20%;
+    --sidebar-accent-foreground: 0 0% 26%;
     --sidebar-border: 0 0% 88%;
-    --sidebar-ring: 116 70% 55%;
+    --sidebar-ring: 66 75% 49%;
   }
 
   .dark {
-    /* N Coisas Digitais Dark Theme - Primary Mode */
-    --background: 0 0% 6%;
+    /* N Coisas Digitais Dark Theme - #434343 background */
+    --background: 0 0% 26%;
     --foreground: 0 0% 96%;
 
-    --card: 0 0% 10%;
+    --card: 0 0% 30%;
     --card-foreground: 0 0% 96%;
 
-    --popover: 0 0% 10%;
+    --popover: 0 0% 30%;
     --popover-foreground: 0 0% 96%;
 
-    /* Verde Lime N Coisas */
-    --primary: 116 70% 55%;
-    --primary-foreground: 0 0% 6%;
+    /* Verde N Coisas #C7D423 */
+    --primary: 66 75% 49%;
+    --primary-foreground: 0 0% 26%;
 
-    --secondary: 0 0% 14%;
+    --secondary: 0 0% 34%;
     --secondary-foreground: 0 0% 96%;
 
-    --muted: 0 0% 14%;
-    --muted-foreground: 0 0% 60%;
+    --muted: 0 0% 34%;
+    --muted-foreground: 0 0% 70%;
 
-    /* Accent - Dourado/Champagne N Coisas */
-    --accent: 40 55% 65%;
-    --accent-foreground: 0 0% 6%;
+    /* Accent - Verde N Coisas variante */
+    --accent: 66 65% 60%;
+    --accent-foreground: 0 0% 26%;
 
-    --destructive: 0 62% 30%;
+    --destructive: 0 62% 40%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
-    --ring: 116 70% 55%;
+    --border: 0 0% 38%;
+    --input: 0 0% 38%;
+    --ring: 66 75% 49%;
 
-    /* N Coisas Brand Colors */
-    --ncoisas-lime: 116 70% 55%;
-    --ncoisas-dark: 0 0% 6%;
-    --ncoisas-champagne: 40 55% 65%;
+    /* N Coisas Brand Colors - #C7D423 e #434343 */
+    --ncoisas-lime: 66 75% 49%;
+    --ncoisas-dark: 0 0% 26%;
 
-    --sidebar-background: 0 0% 8%;
+    --sidebar-background: 0 0% 22%;
     --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 116 70% 55%;
-    --sidebar-primary-foreground: 0 0% 6%;
-    --sidebar-accent: 0 0% 14%;
+    --sidebar-primary: 66 75% 49%;
+    --sidebar-primary-foreground: 0 0% 26%;
+    --sidebar-accent: 0 0% 30%;
     --sidebar-accent-foreground: 0 0% 90%;
-    --sidebar-border: 0 0% 18%;
-    --sidebar-ring: 116 70% 55%;
+    --sidebar-border: 0 0% 34%;
+    --sidebar-ring: 66 75% 49%;
   }
 }
 
