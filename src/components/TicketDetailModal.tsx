@@ -58,7 +58,7 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
   const { user, profile, isAdmin, isTeamMember, isClientAdmin, isClientUser } = useAuth();
   const isClient = isClientAdmin || isClientUser;
   const { toast } = useToast();
-  const { notifyMention } = useEmailNotifications();
+  const { notifyMention, notifyTicketUpdated } = useEmailNotifications();
   const [comments, setComments] = useState<TicketComment[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
@@ -395,13 +395,21 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
         },
       }]);
 
-      // Notify assigned user
+      // Notify assigned user via in-app notification AND email
       if (newAssigneeId && newAssigneeId !== user.id) {
+        // In-app notification
         await supabase.from('notifications').insert([{
           user_id: newAssigneeId,
           type: 'assigned',
           ticket_id: ticket.id,
         }]);
+
+        // Email notification
+        await notifyTicketUpdated(
+          [newAssigneeId],
+          ticket.title,
+          `Você foi atribuído como responsável por ${profile?.full_name || 'alguém'}`
+        );
       }
 
       toast({ title: 'Responsável atualizado!' });
