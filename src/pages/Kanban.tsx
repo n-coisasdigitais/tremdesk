@@ -148,7 +148,7 @@ const KanbanColumn = ({ status, tickets, onTicketClick }: KanbanColumnProps) => 
   });
 
   return (
-    <div className="flex flex-col min-w-[280px] max-w-[320px]">
+    <div className="flex flex-col w-[260px] sm:w-[280px] md:min-w-[280px] md:max-w-[320px] flex-shrink-0">
       <div className={`flex items-center justify-between p-3 rounded-t-lg ${config.bgColor}`}>
         <div className="flex items-center gap-2">
           <div className={`w-3 h-3 rounded-full ${config.color}`} />
@@ -162,7 +162,7 @@ const KanbanColumn = ({ status, tickets, onTicketClick }: KanbanColumnProps) => 
       <SortableContext items={tickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
         <div 
           ref={setNodeRef}
-          className={`flex-1 p-2 space-y-3 min-h-[400px] rounded-b-lg border-x border-b transition-colors ${config.bgColor} ${isOver ? 'ring-2 ring-primary ring-inset' : ''}`}
+          className={`flex-1 p-2 space-y-3 min-h-[300px] sm:min-h-[400px] rounded-b-lg border-x border-b transition-colors ${config.bgColor} ${isOver ? 'ring-2 ring-primary ring-inset' : ''}`}
         >
           {tickets.map((ticket) => (
             <DraggableTicketCard
@@ -289,15 +289,19 @@ export default function Kanban() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <div className="flex gap-4 overflow-x-auto pb-4">
-              {columns.map((status) => (
-                <KanbanColumn
-                  key={status}
-                  status={status}
-                  tickets={getTicketsByStatus(status)}
-                  onTicketClick={setSelectedTicket}
-                />
-              ))}
+            <div className="relative -mx-4 sm:-mx-6 lg:-mx-8">
+              <div className="overflow-x-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex gap-4 pb-4 min-w-min">
+                  {columns.map((status) => (
+                    <KanbanColumn
+                      key={status}
+                      status={status}
+                      tickets={getTicketsByStatus(status)}
+                      onTicketClick={setSelectedTicket}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
 
             <DragOverlay>
