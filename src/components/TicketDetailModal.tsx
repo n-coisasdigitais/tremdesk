@@ -16,7 +16,7 @@ import { useEmailNotifications } from '@/hooks/useEmailNotifications';
 import { Ticket, TicketComment, Approval, Profile } from '@/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Check, X, Clock, MessageSquare, Activity, Send, UserPlus } from 'lucide-react';
+import { Check, X, Clock, MessageSquare, Activity, Send, UserPlus, Trash2, Archive } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface TicketDetailModalProps {
@@ -33,6 +33,7 @@ const statusConfig = {
   aprovado: { label: 'Aprovado', color: 'bg-green-500' },
   concluido: { label: 'Concluído', color: 'bg-gray-500' },
   cancelado: { label: 'Cancelado', color: 'bg-red-500' },
+  arquivado: { label: 'Arquivado', color: 'bg-slate-500' },
 };
 
 const priorityConfig = {
@@ -421,10 +422,71 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
     }
   };
 
+  const handleDeleteTicket = async () => {
+    if (!ticket || !user) return;
+    
+    if (ticket.status !== 'novo') {
+      toast({ 
+        title: 'Não é possível excluir', 
+        description: 'Somente demandas com status "Novo" podem ser excluídas. Use a opção "Arquivar" em vez disso.',
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    if (!window.confirm('Tem certeza que deseja excluir esta demanda? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('tickets').delete().eq('id', ticket.id);
+      if (error) throw error;
+
+      toast({ title: 'Demanda excluída!' });
+      onOpenChange(false);
+      onUpdate();
+    } catch (error: any) {
+      toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleArchiveTicket = async () => {
+    if (!ticket || !user) return;
+
+    if (!window.confirm('Tem certeza que deseja arquivar esta demanda?')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await supabase.from('tickets').update({ status: 'arquivado' }).eq('id', ticket.id);
+
+      await supabase.from('ticket_activities').insert([{
+        ticket_id: ticket.id,
+        user_id: user.id,
+        action_type: 'status_changed',
+        metadata_json: { from: ticket.status, to: 'arquivado' },
+      }]);
+
+      toast({ title: 'Demanda arquivada!' });
+      onOpenChange(false);
+      onUpdate();
+    } catch (error: any) {
+      toast({ title: 'Erro ao arquivar', description: error.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!ticket) return null;
 
   const canChangeStatus = isAdmin || isTeamMember;
   const canApprove = isClient && ticket.status === 'aguardando_aprovacao';
+  const canDelete = canChangeStatus && ticket.status === 'novo';
+  const canArchive = canChangeStatus && ticket.status !== 'novo' && ticket.status !== 'arquivado';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -440,39 +502,69 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
 
         <div className="flex-1 overflow-y-auto space-y-4">
           {/* Status & Info */}
-          <div className="flex flex-wrap gap-4 items-center">
-            {canChangeStatus ? (
-              <Select value={ticket.status} onValueChange={handleStatusChange}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(statusConfig).map(([value, config]) => (
-                    <SelectItem key={value} value={value}>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${config.color}`} />
-                        {config.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Badge variant="outline" className="flex items-center gap-1">
-                <div className={`w-2 h-2 rounded-full ${statusConfig[ticket.status].color}`} />
-                {statusConfig[ticket.status].label}
-              </Badge>
-            )}
+          <div className="flex flex-wrap gap-4 items-center justify-between">
+            <div className="flex flex-wrap gap-4 items-center">
+              {canChangeStatus ? (
+                <Select value={ticket.status} onValueChange={handleStatusChange}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(statusConfig).filter(([value]) => value !== 'arquivado').map(([value, config]) => (
+                      <SelectItem key={value} value={value}>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${config.color}`} />
+                          {config.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <div className={`w-2 h-2 rounded-full ${statusConfig[ticket.status].color}`} />
+                  {statusConfig[ticket.status].label}
+                </Badge>
+              )}
 
-            {ticket.company && (
-              <Badge variant="secondary">{ticket.company.name}</Badge>
-            )}
+              {ticket.company && (
+                <Badge variant="secondary">{ticket.company.name}</Badge>
+              )}
 
-            {ticket.due_date && (
-              <Badge variant="outline" className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {format(new Date(ticket.due_date), 'dd/MM/yyyy', { locale: ptBR })}
-              </Badge>
+              {ticket.due_date && (
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {format(new Date(ticket.due_date), 'dd/MM/yyyy', { locale: ptBR })}
+                </Badge>
+              )}
+            </div>
+
+            {/* Delete/Archive Buttons */}
+            {(canDelete || canArchive) && (
+              <div className="flex gap-2">
+                {canDelete && (
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={handleDeleteTicket}
+                    disabled={loading}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Excluir
+                  </Button>
+                )}
+                {canArchive && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleArchiveTicket}
+                    disabled={loading}
+                  >
+                    <Archive className="h-4 w-4 mr-1" />
+                    Arquivar
+                  </Button>
+                )}
+              </div>
             )}
           </div>
 

@@ -1,6 +1,6 @@
 export type AppRole = 'admin' | 'team_member' | 'client_admin' | 'client_user';
 
-export type TicketStatus = 'novo' | 'em_andamento' | 'aguardando_aprovacao' | 'aprovado' | 'concluido' | 'cancelado';
+export type TicketStatus = 'novo' | 'em_andamento' | 'aguardando_aprovacao' | 'aprovado' | 'concluido' | 'cancelado' | 'arquivado';
 
 export type TicketPriority = 'baixa' | 'media' | 'alta' | 'urgente';
 
