@@ -37,10 +37,17 @@ const priorities: { value: TicketPriority; label: string; color: string }[] = [
   { value: 'urgente', label: 'Urgente', color: 'bg-red-500' },
 ];
 
+interface TeamMember {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+}
+
 export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
   const { createTicket } = useTickets();
   const { isAdmin, isTeamMember, roles } = useAuth();
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [title, setTitle] = useState('');
@@ -48,21 +55,38 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
   const [category, setCategory] = useState<TicketCategory>('outro');
   const [priority, setPriority] = useState<TicketPriority>('media');
   const [companyId, setCompanyId] = useState('');
+  const [assignedTo, setAssignedTo] = useState('');
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
-    const fetchCompanies = async () => {
-      const { data } = await supabase.from('companies').select('*').order('name');
-      if (data) {
-        setCompanies(data as Company[]);
+    const fetchData = async () => {
+      // Fetch companies
+      const { data: companiesData } = await supabase.from('companies').select('*').order('name');
+      if (companiesData) {
+        setCompanies(companiesData as Company[]);
         // Se não for admin/team, seleciona a empresa do usuário
         if (!isAdmin && !isTeamMember && roles.length > 0 && roles[0].company_id) {
           setCompanyId(roles[0].company_id);
         }
       }
+      
+      // Fetch team members for assignment
+      if (isAdmin || isTeamMember) {
+        const { data: teamData } = await supabase
+          .from('user_roles')
+          .select('user_id, profiles:user_id(id, full_name, avatar_url)')
+          .in('role', ['admin', 'team_member']);
+        
+        if (teamData) {
+          const members = teamData
+            .map((t: any) => t.profiles)
+            .filter(Boolean) as TeamMember[];
+          setTeamMembers(members);
+        }
+      }
     };
     if (open) {
-      fetchCompanies();
+      fetchData();
     }
   }, [open, isAdmin, isTeamMember, roles]);
 
@@ -78,6 +102,7 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
         category,
         priority,
         company_id: companyId,
+        assigned_to: assignedTo || null,
         due_date: dueDate ? format(dueDate, 'yyyy-MM-dd') : null,
       });
       
@@ -86,6 +111,7 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
       setDescription(null);
       setCategory('outro');
       setPriority('media');
+      setAssignedTo('');
       setDueDate(undefined);
       onOpenChange(false);
     } finally {
@@ -145,6 +171,25 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
               </Select>
             </div>
           </div>
+
+          {(isAdmin || isTeamMember) && (
+            <div className="space-y-2">
+              <Label>Responsável</Label>
+              <Select value={assignedTo || 'unassigned'} onValueChange={(v) => setAssignedTo(v === 'unassigned' ? '' : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o responsável" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Não atribuído</SelectItem>
+                  {teamMembers.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>
+                      {member.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

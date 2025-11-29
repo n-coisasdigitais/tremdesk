@@ -160,6 +160,25 @@ export const useTickets = () => {
           console.log('Email notification skipped or failed:', err);
         });
 
+        // Notify assigned user if ticket was created with assignee
+        if (ticketData.assigned_to && ticketData.assigned_to !== user?.id) {
+          // Create in-app notification
+          supabase.from('notifications').insert([{
+            user_id: ticketData.assigned_to,
+            type: 'assigned',
+            ticket_id: data.id,
+          }]);
+          
+          // Send email notification
+          notifyTicketUpdated(
+            [ticketData.assigned_to],
+            data.title,
+            `Você foi atribuído como responsável por ${profile?.full_name || 'alguém'}`
+          ).catch(err => {
+            console.log('Email notification for assignee skipped or failed:', err);
+          });
+        }
+
         // Process mentions in ticket description
         if (ticketData.description_json) {
           const mentions = extractMentions(ticketData.description_json);
