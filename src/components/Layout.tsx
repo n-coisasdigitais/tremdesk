@@ -127,6 +127,8 @@ export const Layout = ({ children }: LayoutProps) => {
         return 'Nova demanda criada';
       case 'email_reply':
         return 'Resposta recebida por email';
+      case 'assigned':
+        return 'Uma demanda foi atribuída a você';
       default:
         return 'Nova notificação';
     }

@@ -10,7 +10,42 @@ export const useTickets = () => {
   const [loading, setLoading] = useState(true);
   const { user, profile } = useAuth();
   const { toast } = useToast();
-  const { notifyTicketCreated, notifyTicketUpdated, notifyTicketApproved, notifyTicketRejected } = useEmailNotifications();
+  const { notifyTicketCreated, notifyTicketUpdated, notifyTicketApproved, notifyTicketRejected, notifyMention } = useEmailNotifications();
+
+  // Extract mentions from TipTap JSON content
+  const extractMentions = (content: any): string[] => {
+    const mentions: string[] = [];
+    const traverse = (node: any) => {
+      if (node.type === 'mention' && node.attrs?.id) {
+        mentions.push(node.attrs.id);
+      }
+      if (node.content) {
+        node.content.forEach(traverse);
+      }
+    };
+    if (content?.content) {
+      content.content.forEach(traverse);
+    }
+    return [...new Set(mentions)]; // Remove duplicates
+  };
+
+  // Extract text preview from TipTap JSON content
+  const extractTextPreview = (content: any): string => {
+    const texts: string[] = [];
+    const traverse = (node: any) => {
+      if (node.type === 'text' && node.text) {
+        texts.push(node.text);
+      }
+      if (node.content) {
+        node.content.forEach(traverse);
+      }
+    };
+    if (content?.content) {
+      content.content.forEach(traverse);
+    }
+    const fullText = texts.join(' ');
+    return fullText.length > 150 ? fullText.substring(0, 150) + '...' : fullText;
+  };
 
   useEffect(() => {
     if (user) {
@@ -124,6 +159,39 @@ export const useTickets = () => {
         ).catch(err => {
           console.log('Email notification skipped or failed:', err);
         });
+
+        // Process mentions in ticket description
+        if (ticketData.description_json) {
+          const mentions = extractMentions(ticketData.description_json);
+          const descriptionPreview = extractTextPreview(ticketData.description_json);
+          
+          for (const mentionedUserId of mentions) {
+            // Skip notifying yourself
+            if (mentionedUserId === user?.id) continue;
+            
+            // Create mention record (fire and forget)
+            supabase.from('mentions').insert([{
+              ticket_id: data.id,
+              mentioned_user_id: mentionedUserId,
+              mentioned_by: user?.id,
+            }]);
+            
+            // Create in-app notification (fire and forget)
+            supabase.from('notifications').insert([{
+              user_id: mentionedUserId,
+              type: 'mention',
+              ticket_id: data.id,
+            }]);
+            
+            // Send email notification
+            notifyMention(
+              mentionedUserId,
+              data.title,
+              profile?.full_name || 'Alguém',
+              descriptionPreview
+            );
+          }
+        }
       }
 
       await fetchTickets();

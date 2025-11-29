@@ -12,10 +12,11 @@ import { TicketLinks } from './TicketLinks';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useEmailNotifications } from '@/hooks/useEmailNotifications';
 import { Ticket, TicketComment, Approval, Profile } from '@/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Check, X, Clock, MessageSquare, Activity, Send } from 'lucide-react';
+import { Check, X, Clock, MessageSquare, Activity, Send, UserPlus } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface TicketDetailModalProps {
@@ -54,9 +55,10 @@ interface ActivityItem {
 }
 
 export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: TicketDetailModalProps) => {
-  const { user, isAdmin, isTeamMember, isClientAdmin, isClientUser } = useAuth();
+  const { user, profile, isAdmin, isTeamMember, isClientAdmin, isClientUser } = useAuth();
   const isClient = isClientAdmin || isClientUser;
   const { toast } = useToast();
+  const { notifyMention } = useEmailNotifications();
   const [comments, setComments] = useState<TicketComment[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
@@ -64,12 +66,66 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
   const [approvalFeedback, setApprovalFeedback] = useState('');
   const [loading, setLoading] = useState(false);
   const [timeline, setTimeline] = useState<ActivityItem[]>([]);
+  const [teamMembers, setTeamMembers] = useState<Profile[]>([]);
 
   useEffect(() => {
     if (ticket && open) {
       fetchData();
+      fetchTeamMembers();
     }
   }, [ticket, open]);
+
+  const fetchTeamMembers = async () => {
+    if (!ticket) return;
+    
+    // Fetch team members who have access to this company
+    const { data: teamClients } = await supabase
+      .from('team_clients')
+      .select('team_id')
+      .eq('company_id', ticket.company_id);
+    
+    if (!teamClients || teamClients.length === 0) {
+      // If no team is assigned, fetch all team members
+      const { data: allTeamMembers } = await supabase
+        .from('user_roles')
+        .select('user_id, profiles:user_id(id, full_name, avatar_url)')
+        .in('role', ['admin', 'team_member']);
+      
+      if (allTeamMembers) {
+        const profiles = allTeamMembers
+          .map((tm: any) => tm.profiles)
+          .filter(Boolean);
+        setTeamMembers(profiles);
+      }
+      return;
+    }
+    
+    const teamIds = teamClients.map(tc => tc.team_id);
+    
+    const { data: members } = await supabase
+      .from('team_members')
+      .select('user_id, profiles:user_id(id, full_name, avatar_url)')
+      .in('team_id', teamIds);
+    
+    if (members) {
+      const profiles = members
+        .map((m: any) => m.profiles)
+        .filter(Boolean);
+      // Add admins too
+      const { data: admins } = await supabase
+        .from('user_roles')
+        .select('user_id, profiles:user_id(id, full_name, avatar_url)')
+        .eq('role', 'admin');
+      
+      const adminProfiles = admins?.map((a: any) => a.profiles).filter(Boolean) || [];
+      const allProfiles = [...profiles, ...adminProfiles];
+      // Remove duplicates
+      const uniqueProfiles = allProfiles.filter((p, i, arr) => 
+        arr.findIndex(x => x.id === p.id) === i
+      );
+      setTeamMembers(uniqueProfiles);
+    }
+  };
 
   const fetchData = async () => {
     if (!ticket) return;
@@ -123,27 +179,42 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('ticket_comments').insert([{
+      const { data: commentData, error } = await supabase.from('ticket_comments').insert([{
         ticket_id: ticket.id,
         user_id: user.id,
         content_json: newComment,
-      }]);
+      }]).select().single();
 
       if (error) throw error;
 
       // Check for mentions in the content and create notifications
       const mentions = extractMentions(newComment);
+      const commentPreview = extractTextPreview(newComment);
+      
       for (const mentionedUserId of mentions) {
+        // Create mention record
         await supabase.from('mentions').insert([{
           ticket_id: ticket.id,
           mentioned_user_id: mentionedUserId,
           mentioned_by: user.id,
+          comment_id: commentData?.id,
         }]);
+        
+        // Create in-app notification
         await supabase.from('notifications').insert([{
           user_id: mentionedUserId,
           type: 'mention',
           ticket_id: ticket.id,
+          reference_id: commentData?.id,
         }]);
+        
+        // Send email notification
+        await notifyMention(
+          mentionedUserId,
+          ticket.title,
+          profile?.full_name || 'Alguém',
+          commentPreview
+        );
       }
 
       setNewComment(null);
@@ -154,6 +225,23 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
     } finally {
       setLoading(false);
     }
+  };
+
+  const extractTextPreview = (content: any): string => {
+    const texts: string[] = [];
+    const traverse = (node: any) => {
+      if (node.type === 'text' && node.text) {
+        texts.push(node.text);
+      }
+      if (node.content) {
+        node.content.forEach(traverse);
+      }
+    };
+    if (content?.content) {
+      content.content.forEach(traverse);
+    }
+    const fullText = texts.join(' ');
+    return fullText.length > 150 ? fullText.substring(0, 150) + '...' : fullText;
   };
 
   const extractMentions = (content: any): string[] => {
@@ -286,6 +374,45 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
     }
   };
 
+  const handleAssigneeChange = async (assigneeId: string) => {
+    if (!ticket || !user) return;
+
+    setLoading(true);
+    try {
+      const newAssigneeId = assigneeId === 'unassigned' ? null : assigneeId;
+      
+      await supabase.from('tickets').update({ assigned_to: newAssigneeId }).eq('id', ticket.id);
+
+      const assigneeName = teamMembers.find(m => m.id === assigneeId)?.full_name || 'Ninguém';
+      
+      await supabase.from('ticket_activities').insert([{
+        ticket_id: ticket.id,
+        user_id: user.id,
+        action_type: 'assigned',
+        metadata_json: { 
+          assignee_id: newAssigneeId, 
+          assignee_name: newAssigneeId ? assigneeName : null 
+        },
+      }]);
+
+      // Notify assigned user
+      if (newAssigneeId && newAssigneeId !== user.id) {
+        await supabase.from('notifications').insert([{
+          user_id: newAssigneeId,
+          type: 'assigned',
+          ticket_id: ticket.id,
+        }]);
+      }
+
+      toast({ title: 'Responsável atualizado!' });
+      onUpdate();
+    } catch (error: any) {
+      toast({ title: 'Erro ao atribuir responsável', description: error.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!ticket) return null;
 
   const canChangeStatus = isAdmin || isTeamMember;
@@ -339,17 +466,63 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
                 {format(new Date(ticket.due_date), 'dd/MM/yyyy', { locale: ptBR })}
               </Badge>
             )}
+          </div>
 
-            {ticket.assignee && (
+          {/* Assignee Selection */}
+          {canChangeStatus ? (
+            <div className="flex items-center gap-3">
+              <UserPlus className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Responsável:</span>
+              <Select 
+                value={ticket.assigned_to || 'unassigned'} 
+                onValueChange={handleAssigneeChange}
+              >
+                <SelectTrigger className="w-56">
+                  <SelectValue placeholder="Selecione responsável">
+                    {ticket.assignee ? (
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-5 w-5">
+                          <AvatarImage src={ticket.assignee.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs">{ticket.assignee.full_name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <span>{ticket.assignee.full_name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">Não atribuído</span>
+                    )}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">
+                    <span className="text-muted-foreground">Não atribuído</span>
+                  </SelectItem>
+                  {teamMembers.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-5 w-5">
+                          <AvatarImage src={member.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs">{member.full_name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <span>{member.full_name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : ticket.assignee ? (
+            <div className="flex items-center gap-3">
+              <UserPlus className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Responsável:</span>
               <div className="flex items-center gap-2">
                 <Avatar className="h-6 w-6">
                   <AvatarImage src={ticket.assignee.avatar_url || undefined} />
                   <AvatarFallback>{ticket.assignee.full_name.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <span className="text-sm text-muted-foreground">{ticket.assignee.full_name}</span>
+                <span className="text-sm">{ticket.assignee.full_name}</span>
               </div>
-            )}
-          </div>
+            </div>
+          ) : null}
 
           {/* Description */}
           {ticket.description_json && (
@@ -440,7 +613,11 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
                         )}
                         {item.action_type === 'approved' && 'Aprovou a demanda'}
                         {item.action_type === 'changes_requested' && `Solicitou alterações: ${item.metadata_json?.feedback}`}
-                        {item.action_type === 'assigned' && 'Atribuiu a demanda'}
+                        {item.action_type === 'assigned' && (
+                          item.metadata_json?.assignee_name 
+                            ? <>Atribuiu a demanda para <Badge variant="outline">{item.metadata_json.assignee_name}</Badge></>
+                            : 'Removeu a atribuição da demanda'
+                        )}
                       </p>
                     )}
 
