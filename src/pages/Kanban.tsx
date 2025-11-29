@@ -289,9 +289,9 @@ export default function Kanban() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <div className="relative -mx-4 sm:-mx-6 lg:-mx-8">
-              <div className="overflow-x-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex gap-4 pb-4 min-w-min">
+            <div className="relative -mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden">
+              <div className="overflow-x-auto px-4 sm:px-6 lg:px-8 scrollbar-thin">
+                <div className="inline-flex gap-4 pb-4">
                   {columns.map((status) => (
                     <KanbanColumn
                       key={status}
