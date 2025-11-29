@@ -241,9 +241,15 @@ export const useTickets = () => {
   };
 
   const updateTicketStatus = async (ticketId: string, newStatus: TicketStatus, feedback?: string) => {
+    const ticket = tickets.find(t => t.id === ticketId);
+    const oldStatus = ticket?.status;
+    
+    // Optimistic update - immediately update local state
+    setTickets(prev => prev.map(t => 
+      t.id === ticketId ? { ...t, status: newStatus } : t
+    ));
+    
     try {
-      const ticket = tickets.find(t => t.id === ticketId);
-      const oldStatus = ticket?.status;
       const updateData: any = { status: newStatus };
       
       if (newStatus === 'concluido') {
@@ -278,6 +284,11 @@ export const useTickets = () => {
       await fetchTickets();
       return { error: null };
     } catch (error: any) {
+      // Revert optimistic update on error
+      setTickets(prev => prev.map(t => 
+        t.id === ticketId ? { ...t, status: oldStatus as TicketStatus } : t
+      ));
+      
       console.error('Error updating ticket status:', error);
       toast({
         title: 'Erro ao atualizar status',
