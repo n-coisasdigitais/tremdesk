@@ -161,22 +161,29 @@ export const useTickets = () => {
         });
 
         // Notify assigned user if ticket was created with assignee
-        if (ticketData.assigned_to && ticketData.assigned_to !== user?.id) {
-          // Create in-app notification
+        if (ticketData.assigned_to) {
+          // Create in-app notification (even for self-assignment for consistency)
           supabase.from('notifications').insert([{
             user_id: ticketData.assigned_to,
             type: 'assigned',
             ticket_id: data.id,
-          }]);
-          
-          // Send email notification
-          notifyTicketUpdated(
-            [ticketData.assigned_to],
-            data.title,
-            `Você foi atribuído como responsável por ${profile?.full_name || 'alguém'}`
-          ).catch(err => {
-            console.log('Email notification for assignee skipped or failed:', err);
+          }]).then(({ error }) => {
+            if (error) console.error('Error creating notification:', error);
+            else console.log('In-app notification created for assignee');
           });
+          
+          // Send email notification only if assigning to someone else
+          if (ticketData.assigned_to !== user?.id) {
+            notifyTicketUpdated(
+              [ticketData.assigned_to],
+              data.title,
+              `Você foi atribuído como responsável por ${profile?.full_name || 'alguém'}`
+            ).then(result => {
+              console.log('Email notification result for assignee:', result);
+            }).catch(err => {
+              console.log('Email notification for assignee skipped or failed:', err);
+            });
+          }
         }
 
         // Process mentions in ticket description
@@ -188,19 +195,24 @@ export const useTickets = () => {
             // Skip notifying yourself
             if (mentionedUserId === user?.id) continue;
             
-            // Create mention record (fire and forget)
+            // Create mention record
             supabase.from('mentions').insert([{
               ticket_id: data.id,
               mentioned_user_id: mentionedUserId,
               mentioned_by: user?.id,
-            }]);
+            }]).then(({ error }) => {
+              if (error) console.error('Error creating mention:', error);
+            });
             
-            // Create in-app notification (fire and forget)
+            // Create in-app notification
             supabase.from('notifications').insert([{
               user_id: mentionedUserId,
               type: 'mention',
               ticket_id: data.id,
-            }]);
+            }]).then(({ error }) => {
+              if (error) console.error('Error creating notification:', error);
+              else console.log('In-app notification created for mention');
+            });
             
             // Send email notification
             notifyMention(
@@ -208,7 +220,9 @@ export const useTickets = () => {
               data.title,
               profile?.full_name || 'Alguém',
               descriptionPreview
-            );
+            ).then(result => {
+              console.log('Email notification result for mention:', result);
+            });
           }
         }
       }

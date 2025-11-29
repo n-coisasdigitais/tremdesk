@@ -121,7 +121,7 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nova Demanda</DialogTitle>
         </DialogHeader>
@@ -138,7 +138,7 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Empresa *</Label>
               <Select value={companyId} onValueChange={setCompanyId} required>
@@ -191,7 +191,7 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Prioridade</Label>
               <Select value={priority} onValueChange={(v) => setPriority(v as TicketPriority)}>
@@ -222,8 +222,8 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
                       !dueDate && 'text-muted-foreground'
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dueDate ? format(dueDate, 'PPP', { locale: ptBR }) : 'Selecionar data'}
+                    <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">{dueDate ? format(dueDate, 'PPP', { locale: ptBR }) : 'Selecionar data'}</span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
