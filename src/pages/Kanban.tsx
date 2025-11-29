@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Plus, Calendar, MessageSquare, Paperclip } from 'lucide-react';
+import { Plus, Calendar, Archive, Eye, EyeOff } from 'lucide-react';
 import { Ticket, TicketStatus } from '@/types';
 import { NewTicketModal } from '@/components/NewTicketModal';
 import { TicketDetailModal } from '@/components/TicketDetailModal';
@@ -36,6 +36,7 @@ const statusConfig: Record<TicketStatus, { label: string; color: string; bgColor
   aprovado: { label: 'Aprovado', color: 'bg-green-500', bgColor: 'bg-green-50 dark:bg-green-950' },
   concluido: { label: 'Concluído', color: 'bg-gray-500', bgColor: 'bg-gray-50 dark:bg-gray-950' },
   cancelado: { label: 'Cancelado', color: 'bg-red-500', bgColor: 'bg-red-50 dark:bg-red-950' },
+  arquivado: { label: 'Arquivado', color: 'bg-slate-500', bgColor: 'bg-slate-50 dark:bg-slate-950' },
 };
 
 const priorityConfig = {
@@ -186,8 +187,11 @@ export default function Kanban() {
   const [newTicketOpen, setNewTicketOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
-  const columns: TicketStatus[] = ['novo', 'em_andamento', 'aguardando_aprovacao', 'aprovado', 'concluido'];
+  const columns: TicketStatus[] = showArchived 
+    ? ['arquivado'] 
+    : ['novo', 'em_andamento', 'aguardando_aprovacao', 'aprovado', 'concluido'];
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -239,15 +243,39 @@ export default function Kanban() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Kanban de Demandas</h1>
-            <p className="text-muted-foreground">Arraste os cards para mudar o status</p>
+            <h1 className="text-3xl font-bold">
+              {showArchived ? 'Demandas Arquivadas' : 'Kanban de Demandas'}
+            </h1>
+            <p className="text-muted-foreground">
+              {showArchived ? 'Visualize as demandas arquivadas' : 'Arraste os cards para mudar o status'}
+            </p>
           </div>
-          <Button onClick={() => setNewTicketOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Demanda
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant={showArchived ? "default" : "outline"} 
+              onClick={() => setShowArchived(!showArchived)}
+            >
+              {showArchived ? (
+                <>
+                  <EyeOff className="mr-2 h-4 w-4" />
+                  Voltar ao Kanban
+                </>
+              ) : (
+                <>
+                  <Archive className="mr-2 h-4 w-4" />
+                  Ver Arquivados
+                </>
+              )}
+            </Button>
+            {!showArchived && (
+              <Button onClick={() => setNewTicketOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nova Demanda
+              </Button>
+            )}
+          </div>
         </div>
 
         {loading ? (

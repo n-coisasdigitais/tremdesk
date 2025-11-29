@@ -49,6 +49,7 @@ const statusLabels: Record<TicketStatus, string> = {
   aprovado: 'Aprovado',
   concluido: 'Concluído',
   cancelado: 'Cancelado',
+  arquivado: 'Arquivado',
 };
 
 const COLORS = ['#3B82F6', '#F59E0B', '#F97316', '#10B981', '#6B7280', '#EF4444'];
