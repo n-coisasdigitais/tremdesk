@@ -7,6 +7,7 @@ export interface DayLog {
   id: string;
   date: string;
   user_id: string;
+  company_id: string | null;
   description: string | null;
   work_done: string;
   work_pending: string | null;
@@ -23,6 +24,10 @@ export interface DayLog {
     id: string;
     full_name: string;
     avatar_url: string | null;
+  };
+  company?: {
+    id: string;
+    name: string;
   };
 }
 
@@ -48,6 +53,7 @@ export interface DayLogFormData {
   transcription_url?: string;
   ai_assistant_url?: string;
   meeting_notes?: string;
+  company_id?: string;
 }
 
 export const DAYLOG_TAGS = [
@@ -87,12 +93,13 @@ export const useDayLogs = () => {
     date?: string;
     userId?: string;
     tags?: string[];
+    companyId?: string;
   }) => {
     setLoading(true);
     try {
       let query = supabase
         .from('day_logs')
-        .select('*')
+        .select('*, company:companies(id, name)')
         .order('date', { ascending: false })
         .order('created_at', { ascending: false });
 
@@ -104,6 +111,9 @@ export const useDayLogs = () => {
       }
       if (filters?.tags && filters.tags.length > 0) {
         query = query.overlaps('tags', filters.tags);
+      }
+      if (filters?.companyId) {
+        query = query.eq('company_id', filters.companyId);
       }
 
       const { data, error } = await query;
@@ -157,6 +167,7 @@ export const useDayLogs = () => {
           transcription_url: formData.transcription_url || null,
           ai_assistant_url: formData.ai_assistant_url || null,
           meeting_notes: formData.meeting_notes || null,
+          company_id: formData.company_id || null,
         })
         .select()
         .single();
@@ -214,7 +225,7 @@ export const useDayLogs = () => {
     try {
       const { data, error } = await supabase
         .from('day_logs')
-        .select('*')
+        .select('*, company:companies(id, name)')
         .eq('id', id)
         .single();
 

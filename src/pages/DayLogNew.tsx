@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -9,7 +9,8 @@ import {
   X, 
   Link as LinkIcon,
   Bot,
-  FileText
+  FileText,
+  Building2
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -23,16 +24,30 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useDayLogs, DAYLOG_TAGS, TAG_COLORS, DayLogFormData } from '@/hooks/useDayLogs';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+
+interface Company {
+  id: string;
+  name: string;
+}
 
 export default function DayLogNew() {
   const navigate = useNavigate();
   const { createDayLog } = useDayLogs();
-  const { profile } = useAuth();
+  const { profile, isAdmin, isTeamMember } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [companies, setCompanies] = useState<Company[]>([]);
   
   const [formData, setFormData] = useState<DayLogFormData>({
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -44,9 +59,24 @@ export default function DayLogNew() {
     transcription_url: '',
     ai_assistant_url: '',
     meeting_notes: '',
+    company_id: '',
   });
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
+  useEffect(() => {
+    if (isAdmin || isTeamMember) {
+      fetchCompanies();
+    }
+  }, [isAdmin, isTeamMember]);
+
+  const fetchCompanies = async () => {
+    const { data } = await supabase
+      .from('companies')
+      .select('id, name')
+      .order('name');
+    if (data) setCompanies(data);
+  };
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
@@ -75,7 +105,10 @@ export default function DayLogNew() {
     }
 
     setSaving(true);
-    const result = await createDayLog(formData);
+    const result = await createDayLog({
+      ...formData,
+      company_id: formData.company_id || undefined,
+    });
     setSaving(false);
 
     if (result) {
@@ -154,6 +187,33 @@ export default function DayLogNew() {
                 </div>
               </div>
             </div>
+
+            {/* Company (optional) */}
+            {(isAdmin || isTeamMember) && companies.length > 0 && (
+              <div className="space-y-2">
+                <Label>Empresa (opcional)</Label>
+                <Select 
+                  value={formData.company_id || ''} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, company_id: value === 'none' ? '' : value }))}
+                >
+                  <SelectTrigger className="w-full">
+                    <Building2 className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <SelectValue placeholder="Vincular a uma empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma empresa</SelectItem>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Vincule este DayLog a uma empresa para organização
+                </p>
+              </div>
+            )}
 
             {/* Description */}
             <div className="space-y-2">

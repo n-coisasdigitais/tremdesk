@@ -17,7 +17,8 @@ import {
   Paperclip,
   Upload,
   X,
-  Save
+  Save,
+  Plus
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -55,6 +56,7 @@ import {
   DayLogFormData 
 } from '@/hooks/useDayLogs';
 import { useAuth } from '@/hooks/useAuth';
+import { CreateTicketFromDayLog } from '@/components/CreateTicketFromDayLog';
 import { cn } from '@/lib/utils';
 
 export default function DayLogDetail() {
@@ -535,14 +537,28 @@ export default function DayLogDetail() {
                 </CardContent>
               </Card>
 
-              {/* Work Pending */}
+            {/* Work Pending */}
               {dayLog.work_pending && (
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2">
                       <Clock className="h-5 w-5 text-yellow-600" />
                       O que ficou pendente
                     </CardTitle>
+                    {canEdit && (
+                      <CreateTicketFromDayLog
+                        daylogId={dayLog.id}
+                        defaultTitle={`Pendência: ${dayLog.description || 'DayLog ' + format(new Date(dayLog.date), 'dd/MM')}`}
+                        defaultDescription={dayLog.work_pending}
+                        defaultCompanyId={dayLog.company_id || ''}
+                        trigger={
+                          <Button variant="outline" size="sm" className="gap-2">
+                            <Plus className="h-4 w-4" />
+                            Criar Demanda
+                          </Button>
+                        }
+                      />
+                    )}
                   </CardHeader>
                   <CardContent>
                     <p className="text-foreground whitespace-pre-wrap">{dayLog.work_pending}</p>
@@ -553,11 +569,25 @@ export default function DayLogDetail() {
               {/* Next Steps */}
               {dayLog.next_steps && (
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2">
                       <Target className="h-5 w-5 text-blue-600" />
                       Próximos passos
                     </CardTitle>
+                    {canEdit && (
+                      <CreateTicketFromDayLog
+                        daylogId={dayLog.id}
+                        defaultTitle={`Próximo passo: ${dayLog.description || 'DayLog ' + format(new Date(dayLog.date), 'dd/MM')}`}
+                        defaultDescription={dayLog.next_steps}
+                        defaultCompanyId={dayLog.company_id || ''}
+                        trigger={
+                          <Button variant="outline" size="sm" className="gap-2">
+                            <Plus className="h-4 w-4" />
+                            Criar Demanda
+                          </Button>
+                        }
+                      />
+                    )}
                   </CardHeader>
                   <CardContent>
                     <p className="text-foreground whitespace-pre-wrap">{dayLog.next_steps}</p>

@@ -54,6 +54,7 @@ export interface Ticket {
   status: TicketStatus;
   due_date?: string;
   completed_at?: string;
+  daylog_id?: string;
   created_at: string;
   updated_at: string;
   company?: Company;
