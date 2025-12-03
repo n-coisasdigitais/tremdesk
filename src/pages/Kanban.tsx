@@ -5,10 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Plus, Calendar, Archive, Eye, EyeOff } from 'lucide-react';
+import { Plus, Calendar, Archive, EyeOff, BookOpen } from 'lucide-react';
 import { Ticket, TicketStatus } from '@/types';
 import { NewTicketModal } from '@/components/NewTicketModal';
 import { TicketDetailModal } from '@/components/TicketDetailModal';
+import { KanbanFilters, KanbanFiltersState, filterTickets } from '@/components/KanbanFilters';
 import {
   DndContext,
   DragEndEvent,
@@ -96,7 +97,14 @@ const TicketCard = ({ ticket, onClick }: TicketCardProps) => {
     >
       <CardHeader className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
-          <span className="text-lg">{categoryIcons[ticket.category] || '📋'}</span>
+          <div className="flex items-center gap-1">
+            <span className="text-lg">{categoryIcons[ticket.category] || '📋'}</span>
+            {ticket.daylog_id && (
+              <span title="Vinculado a DayLog">
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+              </span>
+            )}
+          </div>
           <Badge className={priorityConfig[ticket.priority].color} variant="secondary">
             {priorityConfig[ticket.priority].label}
           </Badge>
@@ -188,6 +196,12 @@ export default function Kanban() {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [filters, setFilters] = useState<KanbanFiltersState>({
+    companyId: '',
+    category: '',
+    assigneeId: '',
+    hasDaylog: null,
+  });
 
   const columns: TicketStatus[] = showArchived 
     ? ['arquivado'] 
@@ -201,8 +215,11 @@ export default function Kanban() {
     })
   );
 
+  // Apply filters to tickets
+  const filteredTickets = filterTickets(tickets, filters);
+
   const getTicketsByStatus = (status: TicketStatus) => {
-    return tickets.filter((t) => t.status === status);
+    return filteredTickets.filter((t) => t.status === status);
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -252,7 +269,8 @@ export default function Kanban() {
               {showArchived ? 'Visualize as demandas arquivadas' : 'Arraste os cards para mudar o status'}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <KanbanFilters filters={filters} onFiltersChange={setFilters} />
             <Button 
               variant={showArchived ? "default" : "outline"} 
               onClick={() => setShowArchived(!showArchived)}

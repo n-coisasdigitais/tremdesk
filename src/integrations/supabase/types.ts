@@ -202,6 +202,7 @@ export type Database = {
       day_logs: {
         Row: {
           ai_assistant_url: string | null
+          company_id: string | null
           created_at: string | null
           date: string
           description: string | null
@@ -219,6 +220,7 @@ export type Database = {
         }
         Insert: {
           ai_assistant_url?: string | null
+          company_id?: string | null
           created_at?: string | null
           date?: string
           description?: string | null
@@ -236,6 +238,7 @@ export type Database = {
         }
         Update: {
           ai_assistant_url?: string | null
+          company_id?: string | null
           created_at?: string | null
           date?: string
           description?: string | null
@@ -251,7 +254,15 @@ export type Database = {
           work_done?: string
           work_pending?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "day_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       mentions: {
         Row: {
@@ -762,6 +773,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           created_by: string | null
+          daylog_id: string | null
           description_json: Json | null
           due_date: string | null
           id: string
@@ -777,6 +789,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
+          daylog_id?: string | null
           description_json?: Json | null
           due_date?: string | null
           id?: string
@@ -792,6 +805,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
+          daylog_id?: string | null
           description_json?: Json | null
           due_date?: string | null
           id?: string
@@ -820,6 +834,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_daylog_id_fkey"
+            columns: ["daylog_id"]
+            isOneToOne: false
+            referencedRelation: "day_logs"
             referencedColumns: ["id"]
           },
         ]
