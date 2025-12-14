@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { useTickets } from '@/hooks/useTickets';
+import { useTicketLinks } from '@/hooks/useTicketLinks';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Plus, Calendar, Archive, EyeOff, BookOpen } from 'lucide-react';
+import { Plus, Calendar, Archive, EyeOff, BookOpen, Link2 } from 'lucide-react';
 import { Ticket, TicketStatus } from '@/types';
 import { NewTicketModal } from '@/components/NewTicketModal';
 import { TicketDetailModal } from '@/components/TicketDetailModal';
@@ -29,6 +30,12 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 const statusConfig: Record<TicketStatus, { label: string; color: string; bgColor: string }> = {
   novo: { label: 'Novo', color: 'bg-blue-500', bgColor: 'bg-blue-50 dark:bg-blue-950' },
@@ -56,12 +63,20 @@ const categoryIcons: Record<string, string> = {
   outro: '⚙️',
 };
 
+interface GroupedTicketInfo {
+  isGrouped: boolean;
+  isFirst: boolean;
+  isLast: boolean;
+  groupSize: number;
+}
+
 interface DraggableTicketCardProps {
   ticket: Ticket;
   onClick: () => void;
+  groupInfo?: GroupedTicketInfo;
 }
 
-const DraggableTicketCard = ({ ticket, onClick }: DraggableTicketCardProps) => {
+const DraggableTicketCard = ({ ticket, onClick, groupInfo }: DraggableTicketCardProps) => {
   const {
     attributes,
     listeners,
@@ -79,7 +94,7 @@ const DraggableTicketCard = ({ ticket, onClick }: DraggableTicketCardProps) => {
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <TicketCard ticket={ticket} onClick={onClick} />
+      <TicketCard ticket={ticket} onClick={onClick} groupInfo={groupInfo} />
     </div>
   );
 };
@@ -87,68 +102,117 @@ const DraggableTicketCard = ({ ticket, onClick }: DraggableTicketCardProps) => {
 interface TicketCardProps {
   ticket: Ticket;
   onClick: () => void;
+  groupInfo?: GroupedTicketInfo;
 }
 
-const TicketCard = ({ ticket, onClick }: TicketCardProps) => {
+const TicketCard = ({ ticket, onClick, groupInfo }: TicketCardProps) => {
+  const isGrouped = groupInfo?.isGrouped;
+  const isFirst = groupInfo?.isFirst;
+  const isLast = groupInfo?.isLast;
+  const groupSize = groupInfo?.groupSize || 0;
+
   return (
-    <Card
-      className="cursor-pointer hover:shadow-md transition-all hover:scale-[1.02] bg-card"
-      onClick={onClick}
-    >
-      <CardHeader className="p-4 space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-1">
-            <span className="text-lg">{categoryIcons[ticket.category] || '📋'}</span>
-            {ticket.daylog_id && (
-              <span title="Vinculado a DayLog">
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
-              </span>
-            )}
-          </div>
-          <Badge className={priorityConfig[ticket.priority].color} variant="secondary">
-            {priorityConfig[ticket.priority].label}
-          </Badge>
+    <div className={`relative ${isGrouped ? 'pl-3' : ''}`}>
+      {/* Vertical connection line for grouped tickets */}
+      {isGrouped && (
+        <div className="absolute left-0 top-0 bottom-0 w-1">
+          <div 
+            className={`absolute left-0 w-1 bg-primary/60 ${
+              isFirst ? 'top-1/2 bottom-0 rounded-t-full' : 
+              isLast ? 'top-0 bottom-1/2 rounded-b-full' : 
+              'top-0 bottom-0'
+            }`}
+          />
+          {/* Horizontal connector */}
+          <div className="absolute left-1 top-1/2 w-2 h-0.5 bg-primary/60 -translate-y-1/2" />
         </div>
-
-        <h4 className="font-medium line-clamp-2 text-sm">{ticket.title}</h4>
-
-        {ticket.company && (
-          <p className="text-xs text-muted-foreground">{ticket.company.name}</p>
-        )}
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {ticket.due_date && (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Calendar className="h-3 w-3" />
-                {format(new Date(ticket.due_date), 'dd/MM', { locale: ptBR })}
-              </span>
-            )}
+      )}
+      
+      <Card
+        className={`cursor-pointer hover:shadow-md transition-all hover:scale-[1.02] bg-card ${
+          isGrouped ? 'border-l-2 border-l-primary/40' : ''
+        }`}
+        onClick={onClick}
+      >
+        <CardHeader className="p-4 space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-1">
+              <span className="text-lg">{categoryIcons[ticket.category] || '📋'}</span>
+              {ticket.daylog_id && (
+                <span title="Vinculado a DayLog">
+                  <BookOpen className="h-4 w-4 text-muted-foreground" />
+                </span>
+              )}
+              {/* Link indicator for grouped or linked tickets */}
+              {groupSize > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="flex items-center gap-0.5 text-xs text-primary">
+                        <Link2 className="h-3.5 w-3.5" />
+                        {!isGrouped && <span>{groupSize}</span>}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{isGrouped ? `Grupo de ${groupInfo?.groupSize} demandas vinculadas` : `${groupSize} demanda(s) vinculada(s) em outras colunas`}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+            <Badge className={priorityConfig[ticket.priority].color} variant="secondary">
+              {priorityConfig[ticket.priority].label}
+            </Badge>
           </div>
 
-          <div className="flex items-center gap-1">
-            {ticket.assignee && (
-              <Avatar className="h-6 w-6">
-                <AvatarImage src={ticket.assignee.avatar_url || undefined} />
-                <AvatarFallback className="text-xs">
-                  {ticket.assignee.full_name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-            )}
+          <h4 className="font-medium line-clamp-2 text-sm">{ticket.title}</h4>
+
+          {ticket.company && (
+            <p className="text-xs text-muted-foreground">{ticket.company.name}</p>
+          )}
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {ticket.due_date && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Calendar className="h-3 w-3" />
+                  {format(new Date(ticket.due_date), 'dd/MM', { locale: ptBR })}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1">
+              {ticket.assignee && (
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={ticket.assignee.avatar_url || undefined} />
+                  <AvatarFallback className="text-xs">
+                    {ticket.assignee.full_name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+            </div>
           </div>
-        </div>
-      </CardHeader>
-    </Card>
+        </CardHeader>
+      </Card>
+    </div>
   );
 };
 
+interface GroupedTicket {
+  ticket: Ticket;
+  isGrouped: boolean;
+  isFirst: boolean;
+  isLast: boolean;
+  groupSize: number;
+}
+
 interface KanbanColumnProps {
   status: TicketStatus;
-  tickets: Ticket[];
+  groupedTickets: GroupedTicket[];
   onTicketClick: (ticket: Ticket) => void;
 }
 
-const KanbanColumn = ({ status, tickets, onTicketClick }: KanbanColumnProps) => {
+const KanbanColumn = ({ status, groupedTickets, onTicketClick }: KanbanColumnProps) => {
   const config = statusConfig[status];
   
   const { setNodeRef, isOver } = useDroppable({
@@ -163,23 +227,29 @@ const KanbanColumn = ({ status, tickets, onTicketClick }: KanbanColumnProps) => 
           <h3 className="font-semibold text-sm">{config.label}</h3>
         </div>
         <Badge variant="secondary" className="text-xs">
-          {tickets.length}
+          {groupedTickets.length}
         </Badge>
       </div>
 
-      <SortableContext items={tickets.map(t => t.id)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={groupedTickets.map(gt => gt.ticket.id)} strategy={verticalListSortingStrategy}>
         <div 
           ref={setNodeRef}
-          className={`flex-1 p-2 space-y-3 min-h-[300px] sm:min-h-[400px] rounded-b-lg border-x border-b transition-colors ${config.bgColor} ${isOver ? 'ring-2 ring-primary ring-inset' : ''}`}
+          className={`flex-1 p-2 space-y-2 min-h-[300px] sm:min-h-[400px] rounded-b-lg border-x border-b transition-colors ${config.bgColor} ${isOver ? 'ring-2 ring-primary ring-inset' : ''}`}
         >
-          {tickets.map((ticket) => (
+          {groupedTickets.map((gt) => (
             <DraggableTicketCard
-              key={ticket.id}
-              ticket={ticket}
-              onClick={() => onTicketClick(ticket)}
+              key={gt.ticket.id}
+              ticket={gt.ticket}
+              onClick={() => onTicketClick(gt.ticket)}
+              groupInfo={{
+                isGrouped: gt.isGrouped,
+                isFirst: gt.isFirst,
+                isLast: gt.isLast,
+                groupSize: gt.groupSize,
+              }}
             />
           ))}
-          {tickets.length === 0 && (
+          {groupedTickets.length === 0 && (
             <div className="text-center py-8 text-muted-foreground text-sm">
               Nenhuma demanda
             </div>
@@ -192,6 +262,7 @@ const KanbanColumn = ({ status, tickets, onTicketClick }: KanbanColumnProps) => 
 
 export default function Kanban() {
   const { tickets, loading, updateTicketStatus, fetchTickets } = useTickets();
+  const { sortTicketsWithGroups } = useTicketLinks();
   const [newTicketOpen, setNewTicketOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -218,8 +289,9 @@ export default function Kanban() {
   // Apply filters to tickets
   const filteredTickets = filterTickets(tickets, filters);
 
-  const getTicketsByStatus = (status: TicketStatus) => {
-    return filteredTickets.filter((t) => t.status === status);
+  const getGroupedTicketsByStatus = (status: TicketStatus): GroupedTicket[] => {
+    const statusTickets = filteredTickets.filter((t) => t.status === status);
+    return sortTicketsWithGroups(statusTickets);
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -314,7 +386,7 @@ export default function Kanban() {
                     <KanbanColumn
                       key={status}
                       status={status}
-                      tickets={getTicketsByStatus(status)}
+                      groupedTickets={getGroupedTicketsByStatus(status)}
                       onTicketClick={setSelectedTicket}
                     />
                   ))}
