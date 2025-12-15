@@ -21,6 +21,17 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
+// Component to handle root redirect, detecting recovery tokens
+const RootRedirect = () => {
+  // Check if URL hash contains recovery tokens
+  const hash = window.location.hash;
+  if (hash && hash.includes('type=recovery') && hash.includes('access_token')) {
+    // Redirect to reset password page preserving the hash
+    return <Navigate to={`/auth/reset-password${hash}`} replace />;
+  }
+  return <Navigate to="/dashboard" replace />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -28,7 +39,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<RootRedirect />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/auth/reset-password" element={<ResetPassword />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
