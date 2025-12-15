@@ -13,9 +13,10 @@ function getPasswordRecoveryEmail(data: {
   redirect_to: string;
   site_url: string;
   user_email: string;
+  supabase_url: string;
 }): string {
-  // Use the configured site URL or fallback
-  const resetUrl = `${data.site_url}/auth/reset-password#access_token=${data.token_hash}&type=recovery`;
+  // Use Supabase's verify endpoint which will then redirect to our reset-password page
+  const resetUrl = `${data.supabase_url}/auth/v1/verify?token=${data.token_hash}&type=recovery&redirect_to=${encodeURIComponent(data.site_url + '/auth/reset-password')}`;
   
   return `
     <!DOCTYPE html>
@@ -222,6 +223,7 @@ serve(async (req) => {
       redirect_to: email_data.redirect_to,
       site_url: siteUrl,
       user_email: user.email,
+      supabase_url: supabaseUrl,
     });
 
     const { data, error } = await resend.emails.send({
