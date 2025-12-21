@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useTickets } from '@/hooks/useTickets';
 import { useTicketLinks } from '@/hooks/useTicketLinks';
@@ -261,6 +262,7 @@ const KanbanColumn = ({ status, groupedTickets, onTicketClick }: KanbanColumnPro
 };
 
 export default function Kanban() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { tickets, loading, updateTicketStatus, fetchTickets } = useTickets();
   const { sortTicketsWithGroups } = useTicketLinks();
   const [newTicketOpen, setNewTicketOpen] = useState(false);
@@ -273,6 +275,19 @@ export default function Kanban() {
     assigneeId: '',
     hasDaylog: null,
   });
+
+  // Open ticket from URL param (e.g., when clicking notification)
+  useEffect(() => {
+    const ticketId = searchParams.get('ticket');
+    if (ticketId && tickets.length > 0 && !loading) {
+      const ticket = tickets.find((t) => t.id === ticketId);
+      if (ticket) {
+        setSelectedTicket(ticket);
+        // Clear the URL param after opening
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, tickets, loading]);
 
   const columns: TicketStatus[] = showArchived 
     ? ['arquivado'] 
