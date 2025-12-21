@@ -12,9 +12,14 @@ export const useCategories = () => {
       const { data, error } = await supabase
         .from('ticket_categories')
         .select('*')
+        .eq('active', true)
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao carregar categorias:', error);
+        throw error;
+      }
+      console.log('Categorias carregadas:', data);
       setCategories(data || []);
     } catch (error: any) {
       toast({
