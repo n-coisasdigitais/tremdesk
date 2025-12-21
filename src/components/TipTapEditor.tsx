@@ -199,7 +199,7 @@ export const TipTapEditor = ({
       }),
       Mention.configure({
         HTMLAttributes: {
-          class: 'mention bg-primary/20 text-primary px-1 py-0.5 rounded font-medium',
+          class: 'mention bg-accent text-accent-foreground px-1 py-0.5 rounded font-medium',
         },
         suggestion,
       }),
