@@ -8,6 +8,10 @@ export type TicketCategory = 'meta_ads' | 'google_ads' | 'linkedin_ads' | 'arte'
 
 export type TicketLinkType = 'related' | 'parent' | 'blocks' | 'blocked_by';
 
+export type ApprovalItemStatus = 'pending' | 'approved' | 'changes_requested';
+
+export type ApprovalIssueStatus = 'open' | 'resolved';
+
 export interface Profile {
   id: string;
   full_name: string;
@@ -55,11 +59,15 @@ export interface Ticket {
   due_date?: string;
   completed_at?: string;
   daylog_id?: string;
+  requires_approval?: boolean;
+  approval_assignee?: string;
   created_at: string;
   updated_at: string;
   company?: Company;
   creator?: Profile;
   assignee?: Profile;
+  categories?: TicketCategoryItem[];
+  watchers?: TicketWatcher[];
 }
 
 export interface TicketComment {
@@ -122,4 +130,62 @@ export interface Approval {
   status: 'pending' | 'approved' | 'changes_requested';
   feedback_json?: any;
   created_at: string;
+}
+
+// New types for dynamic categories
+export interface TicketCategoryItem {
+  id: string;
+  name: string;
+  icon?: string;
+  color?: string;
+  active: boolean;
+  created_at: string;
+  created_by?: string;
+}
+
+export interface TicketCategoryAssignment {
+  id: string;
+  ticket_id: string;
+  category_id: string;
+  created_at: string;
+  category?: TicketCategoryItem;
+}
+
+// New types for watchers
+export interface TicketWatcher {
+  id: string;
+  ticket_id: string;
+  user_id: string;
+  added_by?: string;
+  created_at: string;
+  user?: Profile;
+}
+
+// New types for approval items
+export interface ApprovalItem {
+  id: string;
+  ticket_id: string;
+  title: string;
+  description?: string;
+  file_url?: string;
+  status: ApprovalItemStatus;
+  feedback?: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  created_at: string;
+  created_by?: string;
+  reviewer?: Profile;
+  issues?: ApprovalItemIssue[];
+}
+
+export interface ApprovalItemIssue {
+  id: string;
+  approval_item_id: string;
+  description: string;
+  status: ApprovalIssueStatus;
+  resolved_by?: string;
+  resolved_at?: string;
+  created_at: string;
+  created_by?: string;
+  resolver?: Profile;
 }

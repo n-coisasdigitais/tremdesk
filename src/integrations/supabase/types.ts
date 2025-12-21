@@ -80,6 +80,125 @@ export type Database = {
           },
         ]
       }
+      approval_item_issues: {
+        Row: {
+          approval_item_id: string
+          created_at: string | null
+          created_by: string | null
+          description: string
+          id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string | null
+        }
+        Insert: {
+          approval_item_id: string
+          created_at?: string | null
+          created_by?: string | null
+          description: string
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string | null
+        }
+        Update: {
+          approval_item_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_item_issues_approval_item_id_fkey"
+            columns: ["approval_item_id"]
+            isOneToOne: false
+            referencedRelation: "approval_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_item_issues_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_item_issues_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      approval_items: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          feedback: string | null
+          file_url: string | null
+          id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          ticket_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          feedback?: string | null
+          file_url?: string | null
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          ticket_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          feedback?: string | null
+          file_url?: string | null
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          ticket_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_items_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_items_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_items_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approvals: {
         Row: {
           approved_by: string | null
@@ -616,6 +735,80 @@ export type Database = {
           },
         ]
       }
+      ticket_categories: {
+        Row: {
+          active: boolean | null
+          color: string | null
+          created_at: string | null
+          created_by: string | null
+          icon: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          active?: boolean | null
+          color?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          active?: boolean | null
+          color?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_categories_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_category_assignments: {
+        Row: {
+          category_id: string
+          created_at: string | null
+          id: string
+          ticket_id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string | null
+          id?: string
+          ticket_id: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string | null
+          id?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_category_assignments_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "ticket_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_category_assignments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_checklist_items: {
         Row: {
           completed_at: string | null
@@ -765,8 +958,55 @@ export type Database = {
           },
         ]
       }
+      ticket_watchers: {
+        Row: {
+          added_by: string | null
+          created_at: string | null
+          id: string
+          ticket_id: string
+          user_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string | null
+          id?: string
+          ticket_id: string
+          user_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string | null
+          id?: string
+          ticket_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_watchers_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_watchers_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_watchers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tickets: {
         Row: {
+          approval_assignee: string | null
           assigned_to: string | null
           category: Database["public"]["Enums"]["ticket_category"]
           company_id: string
@@ -778,11 +1018,13 @@ export type Database = {
           due_date: string | null
           id: string
           priority: Database["public"]["Enums"]["ticket_priority"]
+          requires_approval: boolean | null
           status: Database["public"]["Enums"]["ticket_status"]
           title: string
           updated_at: string
         }
         Insert: {
+          approval_assignee?: string | null
           assigned_to?: string | null
           category: Database["public"]["Enums"]["ticket_category"]
           company_id: string
@@ -794,11 +1036,13 @@ export type Database = {
           due_date?: string | null
           id?: string
           priority?: Database["public"]["Enums"]["ticket_priority"]
+          requires_approval?: boolean | null
           status?: Database["public"]["Enums"]["ticket_status"]
           title: string
           updated_at?: string
         }
         Update: {
+          approval_assignee?: string | null
           assigned_to?: string | null
           category?: Database["public"]["Enums"]["ticket_category"]
           company_id?: string
@@ -810,11 +1054,19 @@ export type Database = {
           due_date?: string | null
           id?: string
           priority?: Database["public"]["Enums"]["ticket_priority"]
+          requires_approval?: boolean | null
           status?: Database["public"]["Enums"]["ticket_status"]
           title?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tickets_approval_assignee_fkey"
+            columns: ["approval_assignee"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tickets_assigned_to_fkey"
             columns: ["assigned_to"]
