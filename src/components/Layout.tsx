@@ -186,7 +186,7 @@ export const Layout = ({ children }: LayoutProps) => {
                               onClick={() => {
                                 markAsRead(notification.id);
                                 if (notification.ticket_id) {
-                                  navigate('/kanban');
+                                  navigate(`/kanban?ticket=${notification.ticket_id}`);
                                 }
                               }}
                               className={`w-full text-left p-4 hover:bg-muted/50 transition-colors ${
