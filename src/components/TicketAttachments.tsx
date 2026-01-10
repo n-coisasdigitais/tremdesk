@@ -179,6 +179,27 @@ export const TicketAttachments = ({ ticketId, companyId }: TicketAttachmentsProp
         return; // Success with Google Drive
       } catch (err: any) {
         console.error('❌ Google Drive upload falhou:', err);
+        
+        // Log error to database
+        try {
+          await supabase.from('error_logs').insert({
+            type: 'google_drive_upload_failed',
+            message: err.message,
+            details: {
+              file_name: file.name,
+              file_type: file.type,
+              ticket_id: ticketId,
+              company_id: companyId,
+            },
+            source: 'TicketAttachments',
+            user_id: user?.id,
+            ticket_id: ticketId,
+            company_id: companyId,
+          });
+        } catch (logError) {
+          console.error('Erro ao salvar log:', logError);
+        }
+        
         toast({
           title: 'Aviso: Fallback para armazenamento local',
           description: `Upload para Google Drive falhou: ${err.message}. Arquivo será salvo localmente.`,

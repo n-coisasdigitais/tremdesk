@@ -383,6 +383,51 @@ export type Database = {
           },
         ]
       }
+      error_logs: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          details: Json | null
+          id: string
+          message: string
+          resolved: boolean | null
+          resolved_at: string | null
+          resolved_by: string | null
+          source: string | null
+          ticket_id: string | null
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          message: string
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source?: string | null
+          ticket_id?: string | null
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          message?: string
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source?: string | null
+          ticket_id?: string | null
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       mentions: {
         Row: {
           comment_id: string | null
