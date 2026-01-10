@@ -15,6 +15,7 @@ import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface NewTicketModalProps {
   open: boolean;
@@ -57,6 +58,7 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
   const [companyId, setCompanyId] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
+  const [requiresApproval, setRequiresApproval] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -104,6 +106,7 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
         company_id: companyId,
         assigned_to: assignedTo || null,
         due_date: dueDate ? format(dueDate, 'yyyy-MM-dd') : null,
+        requires_approval: requiresApproval,
       });
       
       // Reset form
@@ -113,6 +116,7 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
       setPriority('media');
       setAssignedTo('');
       setDueDate(undefined);
+      setRequiresApproval(false);
       onOpenChange(false);
     } finally {
       setLoading(false);
@@ -247,6 +251,19 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
               placeholder="Descreva a demanda... Use @nome para mencionar alguém"
             />
           </div>
+
+          {(isAdmin || isTeamMember) && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="requires_approval"
+                checked={requiresApproval}
+                onCheckedChange={(checked) => setRequiresApproval(checked === true)}
+              />
+              <Label htmlFor="requires_approval" className="text-sm font-normal cursor-pointer">
+                Esta demanda precisa de aprovação do cliente (artes/peças)
+              </Label>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

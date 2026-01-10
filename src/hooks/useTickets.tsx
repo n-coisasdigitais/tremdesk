@@ -102,6 +102,30 @@ export const useTickets = () => {
   };
 
   const createTicket = async (ticketData: any) => {
+    // Optimistic update - create temporary ticket immediately
+    const tempId = `temp-${Date.now()}`;
+    const tempTicket: Ticket = {
+      id: tempId,
+      title: ticketData.title,
+      description_json: ticketData.description_json,
+      category: ticketData.category,
+      priority: ticketData.priority || 'media',
+      status: 'novo',
+      company_id: ticketData.company_id,
+      created_by: user?.id || '',
+      assigned_to: ticketData.assigned_to,
+      due_date: ticketData.due_date,
+      requires_approval: ticketData.requires_approval || false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      company: null,
+      creator: profile || null,
+      assignee: null,
+    };
+    
+    // Immediately add to state
+    setTickets(prev => [tempTicket, ...prev]);
+
     try {
       const { data, error } = await supabase
         .from('tickets')
@@ -115,7 +139,14 @@ export const useTickets = () => {
         `)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Revert optimistic update on error
+        setTickets(prev => prev.filter(t => t.id !== tempId));
+        throw error;
+      }
+
+      // Replace temp ticket with real one
+      setTickets(prev => prev.map(t => t.id === tempId ? { ...data, creator: profile, assignee: null } as Ticket : t));
 
       toast({
         title: 'Demanda criada!',
