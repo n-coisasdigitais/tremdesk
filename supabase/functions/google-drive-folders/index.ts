@@ -337,6 +337,8 @@ async function getOrCreateDemandFolder(
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log("=== google-drive-folders edge function iniciada ===");
+  
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -349,6 +351,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get settings from database
+    console.log("Buscando configurações do sistema...");
     const { data: settings, error: settingsError } = await supabase
       .from("system_settings")
       .select("key, value")
@@ -363,7 +366,14 @@ const handler = async (req: Request): Promise<Response> => {
     const serviceAccountKey = settingsMap["google_service_account_key"];
     const rootFolderId = settingsMap["google_drive_root_folder_id"];
 
+    console.log("Configurações encontradas:", {
+      hasServiceAccountKey: !!serviceAccountKey,
+      hasRootFolderId: !!rootFolderId,
+      rootFolderId: rootFolderId ? rootFolderId.substring(0, 10) + "..." : null
+    });
+
     if (!serviceAccountKey) {
+      console.error("Service Account Key não encontrada!");
       return new Response(
         JSON.stringify({ error: "Google Drive não configurado. Configure a Service Account nas configurações." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -371,6 +381,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!rootFolderId) {
+      console.error("Root Folder ID não encontrado!");
       return new Response(
         JSON.stringify({ error: "ID da pasta raiz do Google Drive não configurado." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -378,7 +389,13 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const body: GoogleDriveRequest = await req.json();
-    console.log("Request action:", body.action);
+    console.log("Request recebido:", {
+      action: body.action,
+      demand_id: body.demand_id,
+      company_id: body.company_id,
+      file_name: body.file_name,
+      hasFileContent: !!body.file_content
+    });
 
     // Get access token
     const accessToken = await getAccessToken(serviceAccountKey);

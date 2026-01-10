@@ -44,12 +44,33 @@ export const TicketAttachments = ({ ticketId, companyId }: TicketAttachmentsProp
     try {
       const { data } = await supabase
         .from('system_settings')
-        .select('value')
-        .eq('key', 'google_service_account_email')
-        .maybeSingle();
+        .select('key, value')
+        .in('key', [
+          'google_service_account_email',
+          'google_service_account_key', 
+          'google_drive_root_folder_id'
+        ]);
       
-      setGoogleDriveConfigured(!!data?.value);
-    } catch {
+      const settings = Object.fromEntries(
+        data?.map(s => [s.key, s.value]) || []
+      );
+      
+      const isConfigured = !!(
+        settings.google_service_account_email && 
+        settings.google_service_account_key && 
+        settings.google_drive_root_folder_id
+      );
+      
+      console.log('Google Drive configuração:', {
+        hasEmail: !!settings.google_service_account_email,
+        hasKey: !!settings.google_service_account_key,
+        hasRootFolder: !!settings.google_drive_root_folder_id,
+        isConfigured
+      });
+      
+      setGoogleDriveConfigured(isConfigured);
+    } catch (err) {
+      console.error('Erro ao verificar config do Google Drive:', err);
       setGoogleDriveConfigured(false);
     }
   };
@@ -106,7 +127,9 @@ export const TicketAttachments = ({ ticketId, companyId }: TicketAttachmentsProp
     // Try Google Drive first if configured
     if (googleDriveConfigured) {
       try {
+        console.log('📤 Iniciando upload para Google Drive...', { fileName: file.name, ticketId, companyId });
         const base64 = await fileToBase64(file);
+        
         const { data, error } = await supabase.functions.invoke('google-drive-folders', {
           body: {
             action: 'upload_file',
@@ -118,28 +141,51 @@ export const TicketAttachments = ({ ticketId, companyId }: TicketAttachmentsProp
           },
         });
 
-        if (!error && !data?.error) {
-          // Save attachment record with Google Drive info
-          const { error: insertError } = await supabase.from('ticket_attachments').insert({
-            ticket_id: ticketId,
-            file_name: file.name,
-            file_type: file.type,
-            file_url: data.file_url,
-            google_drive_file_id: data.file_id,
-            google_drive_folder_id: data.folder_id,
-            uploaded_by: user?.id,
-          });
+        console.log('📥 Resposta do Google Drive:', { data, error });
 
-          if (insertError) throw insertError;
-
-          if (data.folder_url) {
-            setFolderUrl(data.folder_url);
-          }
-          return; // Success with Google Drive
+        if (error) {
+          console.error('❌ Erro na edge function:', error);
+          throw new Error(error.message || 'Erro ao chamar edge function');
         }
-      } catch (err) {
-        console.log('Google Drive upload failed, falling back to Supabase Storage');
+
+        if (data?.error) {
+          console.error('❌ Erro retornado pela API do Google Drive:', data.error);
+          throw new Error(data.error);
+        }
+
+        if (!data?.file_url || !data?.file_id) {
+          console.error('❌ Resposta incompleta do Google Drive:', data);
+          throw new Error('Resposta incompleta do Google Drive');
+        }
+
+        // Save attachment record with Google Drive info
+        const { error: insertError } = await supabase.from('ticket_attachments').insert({
+          ticket_id: ticketId,
+          file_name: file.name,
+          file_type: file.type,
+          file_url: data.file_url,
+          google_drive_file_id: data.file_id,
+          google_drive_folder_id: data.folder_id,
+          uploaded_by: user?.id,
+        });
+
+        if (insertError) throw insertError;
+
+        if (data.folder_url) {
+          setFolderUrl(data.folder_url);
+        }
+        
+        console.log('✅ Upload para Google Drive concluído com sucesso!');
+        return; // Success with Google Drive
+      } catch (err: any) {
+        console.error('❌ Google Drive upload falhou:', err);
+        toast({
+          title: 'Aviso: Fallback para armazenamento local',
+          description: `Upload para Google Drive falhou: ${err.message}. Arquivo será salvo localmente.`,
+        });
       }
+    } else {
+      console.log('ℹ️ Google Drive não configurado, usando armazenamento local');
     }
 
     // Fallback to Supabase Storage
