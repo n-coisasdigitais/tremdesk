@@ -10,7 +10,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { User, Upload, HardDrive, Mail, Settings2, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
+import { User, Upload, HardDrive, Mail, Settings2, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ExternalLink, Wrench } from 'lucide-react';
+import { ErrorLogsPanel } from '@/components/admin/ErrorLogsPanel';
+import { MigrateToGoogleDrivePanel } from '@/components/admin/MigrateToGoogleDrivePanel';
 
 interface SystemSetting {
   id: string;
@@ -304,10 +306,16 @@ const Settings = () => {
               Perfil
             </TabsTrigger>
             {isAdmin && (
-              <TabsTrigger value="integracoes" className="flex items-center gap-2">
-                <Settings2 className="h-4 w-4" />
-                Integrações
-              </TabsTrigger>
+              <>
+                <TabsTrigger value="integracoes" className="flex items-center gap-2">
+                  <Settings2 className="h-4 w-4" />
+                  Integrações
+                </TabsTrigger>
+                <TabsTrigger value="ferramentas" className="flex items-center gap-2">
+                  <Wrench className="h-4 w-4" />
+                  Ferramentas
+                </TabsTrigger>
+              </>
             )}
           </TabsList>
 
@@ -422,6 +430,7 @@ const Settings = () => {
 
           {/* Integrations Tab (Admin only) */}
           {isAdmin && (
+            <>
             <TabsContent value="integracoes">
               {settingsLoading ? (
                 <div className="flex items-center justify-center py-12">
@@ -766,7 +775,16 @@ const Settings = () => {
                 </div>
               )}
             </TabsContent>
-          )}
+
+            {/* Admin Tools Tab */}
+            <TabsContent value="ferramentas">
+              <div className="space-y-6">
+                <MigrateToGoogleDrivePanel />
+                <ErrorLogsPanel />
+              </div>
+            </TabsContent>
+          </>
+        )}
         </Tabs>
       </div>
     </Layout>
