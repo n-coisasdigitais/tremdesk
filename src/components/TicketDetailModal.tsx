@@ -9,6 +9,7 @@ import { TipTapEditor } from './TipTapEditor';
 import { TicketAttachments } from './TicketAttachments';
 import { TicketChecklist } from './TicketChecklist';
 import { TicketLinks } from './TicketLinks';
+import { ApprovalItemsPanel } from './ApprovalItemsPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -643,6 +644,18 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
 
           {/* Attachments */}
           <TicketAttachments ticketId={ticket.id} companyId={ticket.company_id} />
+
+          {/* Approval Items Panel - for art approvals */}
+          {(ticket.requires_approval || ticket.status === 'aguardando_aprovacao') && (
+            <>
+              <Separator />
+              <ApprovalItemsPanel
+                ticketId={ticket.id}
+                canAddItems={isAdmin || isTeamMember}
+                canReview={isClient}
+              />
+            </>
+          )}
 
           <Separator />
 
