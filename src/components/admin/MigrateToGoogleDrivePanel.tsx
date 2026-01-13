@@ -137,12 +137,19 @@ export const MigrateToGoogleDrivePanel = () => {
 
   const migrateFile = async (attachment: PendingAttachment): Promise<boolean> => {
     try {
-      console.log('📤 Migrando arquivo:', attachment.file_name);
+      console.log('📤 Iniciando migração:', {
+        file_name: attachment.file_name,
+        ticket_id: attachment.ticket_id,
+        company_id: attachment.ticket?.company_id,
+      });
       
       // Download file from Supabase Storage
+      console.log('📥 Baixando arquivo do Supabase Storage...');
       const base64 = await downloadFile(attachment.file_url);
+      console.log('✅ Download concluído. Tamanho base64:', base64.length);
       
       // Upload to Google Drive
+      console.log('📤 Enviando para Google Drive...');
       const { data, error } = await supabase.functions.invoke('google-drive-folders', {
         body: {
           action: 'upload_file',
@@ -154,48 +161,75 @@ export const MigrateToGoogleDrivePanel = () => {
         },
       });
 
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.error);
-      if (!data?.file_url || !data?.file_id) throw new Error('Resposta incompleta');
+      console.log('📬 Resposta da edge function:', { data, error });
+
+      if (error) {
+        console.error('❌ Erro na edge function:', error);
+        throw new Error(error.message);
+      }
+      
+      if (data?.error) {
+        console.error('❌ Erro retornado pela API:', data.error);
+        throw new Error(data.error);
+      }
+      
+      // Check for file_id in response (API returns file_id, not file_url as primary indicator)
+      const fileId = data?.file_id;
+      const fileUrl = data?.file_url;
+      const folderId = data?.folder_id;
+      
+      console.log('📋 Dados extraídos:', { fileId, fileUrl, folderId });
+      
+      if (!fileId) {
+        console.error('❌ Resposta incompleta - sem file_id:', data);
+        throw new Error('Resposta incompleta: file_id não encontrado');
+      }
 
       // Update attachment record
+      console.log('💾 Atualizando registro no banco de dados...');
       const { error: updateError } = await supabase
         .from('ticket_attachments')
         .update({
-          file_url: data.file_url,
-          google_drive_file_id: data.file_id,
-          google_drive_folder_id: data.folder_id,
+          file_url: fileUrl,
+          google_drive_file_id: fileId,
+          google_drive_folder_id: folderId,
         })
         .eq('id', attachment.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('❌ Erro ao atualizar banco:', updateError);
+        throw updateError;
+      }
 
       // Log success
-      console.log('✅ Arquivo migrado com sucesso:', attachment.file_name);
-
-      // Delete from Supabase Storage (optional - keeping for safety)
-      // const path = attachment.file_url.split('/attachments/')[1];
-      // if (path) {
-      //   await supabase.storage.from('attachments').remove([path]);
-      // }
+      console.log('✅ Arquivo migrado com sucesso:', {
+        file_name: attachment.file_name,
+        file_id: fileId,
+        folder_id: folderId,
+      });
 
       return true;
     } catch (err: any) {
       console.error('❌ Falha na migração:', err);
       
-      // Log error
-      await supabase.from('error_logs').insert({
-        type: 'google_drive_migration_failed',
-        message: err.message,
-        details: {
-          attachment_id: attachment.id,
-          file_name: attachment.file_name,
+      // Log error to database
+      try {
+        await supabase.from('error_logs').insert({
+          type: 'google_drive_migration_failed',
+          message: err.message || 'Erro desconhecido',
+          details: {
+            attachment_id: attachment.id,
+            file_name: attachment.file_name,
+            ticket_id: attachment.ticket_id,
+            error_stack: err.stack,
+          },
+          source: 'MigrateToGoogleDrivePanel',
+          user_id: user?.id,
           ticket_id: attachment.ticket_id,
-        },
-        source: 'MigrateToGoogleDrivePanel',
-        user_id: user?.id,
-        ticket_id: attachment.ticket_id,
-      });
+        });
+      } catch (logErr) {
+        console.error('❌ Erro ao salvar log:', logErr);
+      }
 
       return false;
     }
