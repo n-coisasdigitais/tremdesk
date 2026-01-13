@@ -208,6 +208,20 @@ export const MigrateToGoogleDrivePanel = () => {
         folder_id: folderId,
       });
 
+      // Delete from Supabase Storage after successful migration
+      if (attachment.file_url.includes('supabase')) {
+        const path = attachment.file_url.split('/attachments/')[1];
+        if (path) {
+          console.log('🗑️ Removendo arquivo do Supabase Storage:', path);
+          const { error: deleteError } = await supabase.storage.from('attachments').remove([path]);
+          if (deleteError) {
+            console.warn('⚠️ Falha ao remover do Storage (não crítico):', deleteError);
+          } else {
+            console.log('✅ Arquivo removido do Supabase Storage');
+          }
+        }
+      }
+
       return true;
     } catch (err: any) {
       console.error('❌ Falha na migração:', err);
