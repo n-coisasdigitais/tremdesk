@@ -21,7 +21,17 @@ interface GoogleDriveRequest {
 
 // Get access token using service account credentials
 async function getAccessToken(serviceAccountKey: string): Promise<string> {
-  const credentials = JSON.parse(serviceAccountKey);
+  console.log("=== Iniciando obtenção de Access Token ===");
+  
+  let credentials;
+  try {
+    credentials = JSON.parse(serviceAccountKey);
+    console.log("Service Account Email:", credentials.client_email);
+    console.log("Project ID:", credentials.project_id);
+  } catch (e) {
+    console.error("Erro ao fazer parse do Service Account Key:", e);
+    throw new Error("Service Account Key inválida - não é um JSON válido");
+  }
   
   const header = {
     alg: "RS256",
@@ -71,6 +81,7 @@ async function getAccessToken(serviceAccountKey: string): Promise<string> {
   const jwt = `${unsignedJwt}.${signatureB64}`;
 
   // Exchange JWT for access token
+  console.log("Solicitando access token ao Google...");
   const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -80,19 +91,66 @@ async function getAccessToken(serviceAccountKey: string): Promise<string> {
   const tokenData = await tokenResponse.json();
   
   if (!tokenData.access_token) {
-    console.error("Token response:", tokenData);
+    console.error("Falha ao obter token - resposta:", tokenData);
     throw new Error("Failed to get access token: " + JSON.stringify(tokenData));
   }
 
+  console.log("Access token obtido com sucesso!");
   return tokenData.access_token;
 }
 
-// Create a folder in Google Drive
+// Verify if folder is in a Shared Drive
+async function verifyFolderInfo(accessToken: string, folderId: string): Promise<{
+  isSharedDrive: boolean;
+  driveId?: string;
+  name?: string;
+  parents?: string[];
+}> {
+  console.log(`=== Verificando informações da pasta: ${folderId} ===`);
+  
+  const response = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,name,parents,driveId,teamDriveId&supportsAllDrives=true`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error("Erro ao verificar pasta:", error);
+    return { isSharedDrive: false };
+  }
+
+  const data = await response.json();
+  console.log("Informações da pasta:", JSON.stringify(data, null, 2));
+  
+  return {
+    isSharedDrive: !!(data.driveId || data.teamDriveId),
+    driveId: data.driveId || data.teamDriveId,
+    name: data.name,
+    parents: data.parents,
+  };
+}
+
+// Create a folder in Google Drive (with Shared Drive support)
 async function createFolder(
   accessToken: string, 
   name: string, 
   parentId?: string
 ): Promise<{ id: string; webViewLink: string }> {
+  console.log(`=== Criando pasta: "${name}" ===`);
+  console.log(`Parent ID: ${parentId || 'root'}`);
+  
+  // Verificar se o parent é um Shared Drive
+  let isSharedDrive = false;
+  if (parentId) {
+    const parentInfo = await verifyFolderInfo(accessToken, parentId);
+    isSharedDrive = parentInfo.isSharedDrive;
+    console.log(`Parent é Shared Drive: ${isSharedDrive}`);
+  }
+
   const metadata: any = {
     name,
     mimeType: "application/vnd.google-apps.folder",
@@ -102,32 +160,32 @@ async function createFolder(
     metadata.parents = [parentId];
   }
 
-  console.log(`Creating folder: ${name} in parent: ${parentId || 'root'}`);
+  // URL com suporte a Shared Drives
+  const url = "https://www.googleapis.com/drive/v3/files?fields=id,webViewLink&supportsAllDrives=true";
 
-  const response = await fetch(
-    "https://www.googleapis.com/drive/v3/files?fields=id,webViewLink",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(metadata),
-    }
-  );
+  console.log("Enviando request para criar pasta...");
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(metadata),
+  });
 
   if (!response.ok) {
     const error = await response.text();
-    console.error("Create folder error:", error);
+    console.error("Erro ao criar pasta - Status:", response.status);
+    console.error("Erro detalhado:", error);
     throw new Error(`Failed to create folder: ${error}`);
   }
 
   const data = await response.json();
-  console.log(`Folder created: ${data.id}`);
+  console.log(`Pasta criada com sucesso! ID: ${data.id}`);
   return data;
 }
 
-// Upload a file to Google Drive
+// Upload a file to Google Drive (with Shared Drive support)
 async function uploadFile(
   accessToken: string,
   fileName: string,
@@ -135,13 +193,21 @@ async function uploadFile(
   fileContent: string, // base64 encoded
   parentId: string
 ): Promise<{ id: string; webViewLink: string; webContentLink: string }> {
-  console.log(`Uploading file: ${fileName} to folder: ${parentId}`);
-
-  // Decode base64 content
-  const binaryContent = Uint8Array.from(atob(fileContent), c => c.charCodeAt(0));
+  console.log(`=== Iniciando upload de arquivo ===`);
+  console.log(`Arquivo: ${fileName}`);
+  console.log(`Tipo: ${fileType}`);
+  console.log(`Pasta destino: ${parentId}`);
+  console.log(`Tamanho do conteúdo base64: ${fileContent.length} caracteres`);
+  
+  // Verificar se a pasta é um Shared Drive
+  const parentInfo = await verifyFolderInfo(accessToken, parentId);
+  console.log(`Pasta destino é Shared Drive: ${parentInfo.isSharedDrive}`);
+  if (parentInfo.driveId) {
+    console.log(`Drive ID: ${parentInfo.driveId}`);
+  }
 
   // Metadata for the file
-  const metadata = {
+  const metadata: any = {
     name: fileName,
     parents: [parentId],
   };
@@ -172,30 +238,50 @@ async function uploadFile(
   body.set(contentPart, metadataPart.length);
   body.set(closePart, metadataPart.length + contentPart.length);
 
-  const response = await fetch(
-    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink,webContentLink",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": `multipart/related; boundary=${boundary}`,
-      },
-      body: body,
-    }
-  );
+  console.log(`Tamanho total do body: ${body.length} bytes`);
+
+  // URL com suporte a Shared Drives
+  const url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink,webContentLink&supportsAllDrives=true";
+  
+  console.log("Enviando request de upload...");
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": `multipart/related; boundary=${boundary}`,
+    },
+    body: body,
+  });
+
+  console.log(`Status da resposta: ${response.status}`);
 
   if (!response.ok) {
     const error = await response.text();
-    console.error("Upload file error:", error);
+    console.error("=== ERRO NO UPLOAD ===");
+    console.error("Status:", response.status);
+    console.error("Erro completo:", error);
+    
+    // Parse para melhor diagnóstico
+    try {
+      const errorJson = JSON.parse(error);
+      console.error("Código do erro:", errorJson.error?.code);
+      console.error("Mensagem:", errorJson.error?.message);
+      console.error("Razão:", errorJson.error?.errors?.[0]?.reason);
+      console.error("Domínio:", errorJson.error?.errors?.[0]?.domain);
+    } catch (e) {
+      // Não é JSON
+    }
+    
     throw new Error(`Failed to upload file: ${error}`);
   }
 
   const data = await response.json();
-  console.log(`File uploaded: ${data.id}`);
+  console.log(`Upload concluído com sucesso! File ID: ${data.id}`);
   
-  // Make the file accessible via link
-  await fetch(
-    `https://www.googleapis.com/drive/v3/files/${data.id}/permissions`,
+  // Make the file accessible via link (with Shared Drive support)
+  console.log("Configurando permissões de leitura pública...");
+  const permResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${data.id}/permissions?supportsAllDrives=true`,
     {
       method: "POST",
       headers: {
@@ -208,6 +294,13 @@ async function uploadFile(
       }),
     }
   );
+
+  if (!permResponse.ok) {
+    const permError = await permResponse.text();
+    console.warn("Aviso: Não foi possível configurar permissões públicas:", permError);
+  } else {
+    console.log("Permissões configuradas com sucesso!");
+  }
 
   return data;
 }
@@ -222,7 +315,7 @@ async function shareFolder(
   console.log(`Sharing folder ${folderId} with ${email} as ${role}`);
 
   const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${folderId}/permissions`,
+    `https://www.googleapis.com/drive/v3/files/${folderId}/permissions?supportsAllDrives=true`,
     {
       method: "POST",
       headers: {
@@ -249,16 +342,18 @@ async function shareFolder(
   console.log(`Folder shared successfully`);
 }
 
-// Get folder by name in parent
+// Get folder by name in parent (with Shared Drive support)
 async function findFolder(
   accessToken: string,
   name: string,
   parentId: string
 ): Promise<string | null> {
+  console.log(`Buscando pasta "${name}" em ${parentId}...`);
+  
   const query = `name='${name}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
   
   const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id)`,
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true`,
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -267,11 +362,15 @@ async function findFolder(
   );
 
   if (!response.ok) {
+    const error = await response.text();
+    console.error("Erro ao buscar pasta:", error);
     return null;
   }
 
   const data = await response.json();
-  return data.files?.[0]?.id || null;
+  const foundId = data.files?.[0]?.id || null;
+  console.log(`Resultado da busca: ${foundId ? `Encontrada (ID: ${foundId})` : 'Não encontrada'}`);
+  return foundId;
 }
 
 // Get or create demand folder
@@ -282,6 +381,15 @@ async function getOrCreateDemandFolder(
   companyId: string,
   rootFolderId: string
 ): Promise<{ folderId: string; folderUrl: string }> {
+  console.log("=== getOrCreateDemandFolder ===");
+  console.log(`Demand ID: ${demandId}`);
+  console.log(`Company ID: ${companyId}`);
+  console.log(`Root Folder ID: ${rootFolderId}`);
+  
+  // Verificar se a pasta root é um Shared Drive
+  const rootInfo = await verifyFolderInfo(accessToken, rootFolderId);
+  console.log(`Root é Shared Drive: ${rootInfo.isSharedDrive}`);
+  
   // Get company info
   const { data: company, error: companyError } = await supabase
     .from("companies")
@@ -290,8 +398,12 @@ async function getOrCreateDemandFolder(
     .single();
 
   if (companyError || !company) {
+    console.error("Erro ao buscar empresa:", companyError);
     throw new Error("Company not found");
   }
+
+  console.log(`Empresa: ${company.name}`);
+  console.log(`Pasta da empresa no banco: ${company.google_drive_folder_id || 'NÃO DEFINIDA'}`);
 
   // Get ticket info
   const { data: ticket, error: ticketError } = await supabase
@@ -300,13 +412,36 @@ async function getOrCreateDemandFolder(
     .eq("id", demandId)
     .single();
 
+  console.log(`Ticket: ${ticket?.title || 'Não encontrado'}`);
+
   let companyFolderId = company.google_drive_folder_id;
+
+  // Verificar se a pasta da empresa existe e está acessível
+  if (companyFolderId) {
+    console.log(`Verificando se pasta da empresa (${companyFolderId}) ainda existe...`);
+    const companyFolderInfo = await verifyFolderInfo(accessToken, companyFolderId);
+    
+    if (!companyFolderInfo.name) {
+      console.warn("ATENÇÃO: Pasta da empresa não encontrada ou inacessível! Será recriada.");
+      companyFolderId = null;
+    } else {
+      console.log(`Pasta da empresa encontrada: ${companyFolderInfo.name}`);
+      
+      // Verificar se a pasta está no mesmo drive que o root
+      if (rootInfo.isSharedDrive && !companyFolderInfo.isSharedDrive) {
+        console.warn("ATENÇÃO: Pasta da empresa está em drive diferente do configurado! Será recriada.");
+        companyFolderId = null;
+      }
+    }
+  }
 
   // Create company folder if it doesn't exist
   if (!companyFolderId) {
+    console.log("Criando pasta da empresa...");
     const companyFolder = await createFolder(accessToken, company.name, rootFolderId);
     companyFolderId = companyFolder.id;
 
+    console.log(`Atualizando pasta da empresa no banco: ${companyFolderId}`);
     await supabase
       .from("companies")
       .update({ google_drive_folder_id: companyFolderId })
@@ -314,22 +449,28 @@ async function getOrCreateDemandFolder(
   }
 
   // Find or create "Demandas" folder
+  console.log("Buscando pasta Demandas...");
   let demandasFolderId = await findFolder(accessToken, "Demandas", companyFolderId);
   
   if (!demandasFolderId) {
+    console.log("Criando pasta Demandas...");
     const demandasFolder = await createFolder(accessToken, "Demandas", companyFolderId);
     demandasFolderId = demandasFolder.id;
   }
 
   // Find or create demand folder
   const demandFolderName = `DEM-${demandId.substring(0, 8).toUpperCase()} - ${ticket?.title || 'Demanda'}`;
+  console.log(`Buscando pasta da demanda: ${demandFolderName}`);
   let demandFolderId = await findFolder(accessToken, demandFolderName, demandasFolderId);
 
   if (!demandFolderId) {
+    console.log("Criando pasta da demanda...");
     const demandFolder = await createFolder(accessToken, demandFolderName, demandasFolderId);
     demandFolderId = demandFolder.id;
   }
 
+  console.log(`Pasta da demanda final: ${demandFolderId}`);
+  
   return {
     folderId: demandFolderId,
     folderUrl: `https://drive.google.com/drive/folders/${demandFolderId}`,
@@ -337,7 +478,10 @@ async function getOrCreateDemandFolder(
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log("=== google-drive-folders edge function iniciada ===");
+  console.log("╔════════════════════════════════════════════════════════════╗");
+  console.log("║  GOOGLE DRIVE FOLDERS - EDGE FUNCTION INICIADA            ║");
+  console.log("╚════════════════════════════════════════════════════════════╝");
+  console.log(`Timestamp: ${new Date().toISOString()}`);
   
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -351,29 +495,29 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get settings from database
-    console.log("Buscando configurações do sistema...");
+    console.log("\n=== CARREGANDO CONFIGURAÇÕES ===");
     const { data: settings, error: settingsError } = await supabase
       .from("system_settings")
       .select("key, value")
-      .in("key", ["google_service_account_key", "google_drive_root_folder_id"]);
+      .in("key", ["google_service_account_key", "google_drive_root_folder_id", "google_service_account_email"]);
 
     if (settingsError) {
-      console.error("Error fetching settings:", settingsError);
+      console.error("Erro ao carregar configurações:", settingsError);
       throw new Error("Failed to fetch settings");
     }
 
     const settingsMap = Object.fromEntries(settings?.map(s => [s.key, s.value]) || []);
     const serviceAccountKey = settingsMap["google_service_account_key"];
     const rootFolderId = settingsMap["google_drive_root_folder_id"];
+    const serviceAccountEmail = settingsMap["google_service_account_email"];
 
-    console.log("Configurações encontradas:", {
-      hasServiceAccountKey: !!serviceAccountKey,
-      hasRootFolderId: !!rootFolderId,
-      rootFolderId: rootFolderId ? rootFolderId.substring(0, 10) + "..." : null
-    });
+    console.log("Configurações carregadas:");
+    console.log(`  - Service Account Email (config): ${serviceAccountEmail || 'NÃO DEFINIDO'}`);
+    console.log(`  - Service Account Key: ${serviceAccountKey ? 'PRESENTE (' + serviceAccountKey.length + ' chars)' : 'AUSENTE'}`);
+    console.log(`  - Root Folder ID: ${rootFolderId || 'NÃO DEFINIDO'}`);
 
     if (!serviceAccountKey) {
-      console.error("Service Account Key não encontrada!");
+      console.error("ERRO: Service Account Key não configurada!");
       return new Response(
         JSON.stringify({ error: "Google Drive não configurado. Configure a Service Account nas configurações." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -381,7 +525,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!rootFolderId) {
-      console.error("Root Folder ID não encontrado!");
+      console.error("ERRO: Root Folder ID não configurado!");
       return new Response(
         JSON.stringify({ error: "ID da pasta raiz do Google Drive não configurado." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -389,16 +533,38 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const body: GoogleDriveRequest = await req.json();
-    console.log("Request recebido:", {
-      action: body.action,
-      demand_id: body.demand_id,
-      company_id: body.company_id,
-      file_name: body.file_name,
-      hasFileContent: !!body.file_content
-    });
+    console.log("\n=== REQUEST RECEBIDO ===");
+    console.log(`Action: ${body.action}`);
+    console.log(`Company ID: ${body.company_id || 'N/A'}`);
+    console.log(`Demand ID: ${body.demand_id || 'N/A'}`);
+    console.log(`File Name: ${body.file_name || 'N/A'}`);
+    console.log(`File Content: ${body.file_content ? 'PRESENTE (' + body.file_content.length + ' chars)' : 'AUSENTE'}`);
 
     // Get access token
+    console.log("\n=== AUTENTICAÇÃO ===");
     const accessToken = await getAccessToken(serviceAccountKey);
+
+    // Verificar se a pasta root é acessível
+    console.log("\n=== VERIFICANDO PASTA ROOT ===");
+    const rootInfo = await verifyFolderInfo(accessToken, rootFolderId);
+    if (!rootInfo.name) {
+      console.error("ERRO CRÍTICO: Não foi possível acessar a pasta root!");
+      console.error("Verifique se:");
+      console.error("  1. O ID da pasta está correto");
+      console.error("  2. A Service Account tem acesso à pasta");
+      console.error("  3. Se é um Shared Drive, a Service Account foi adicionada como membro");
+      return new Response(
+        JSON.stringify({ 
+          error: "Não foi possível acessar a pasta root do Google Drive. Verifique as permissões.",
+          rootFolderId,
+          details: "A Service Account não tem acesso a esta pasta"
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    console.log(`Pasta root acessível: ${rootInfo.name}`);
+    console.log(`É Shared Drive: ${rootInfo.isSharedDrive}`);
 
     let result: any = {};
 
@@ -496,6 +662,8 @@ const handler = async (req: Request): Promise<Response> => {
           throw new Error("demand_id, company_id, file_name, and file_content are required");
         }
 
+        console.log("\n=== INICIANDO PROCESSO DE UPLOAD ===");
+        
         // Get or create the demand folder
         const { folderId, folderUrl } = await getOrCreateDemandFolder(
           accessToken,
@@ -504,6 +672,9 @@ const handler = async (req: Request): Promise<Response> => {
           body.company_id,
           rootFolderId
         );
+
+        console.log(`\nPasta da demanda pronta: ${folderId}`);
+        console.log("Iniciando upload do arquivo...");
 
         // Upload the file
         const uploadedFile = await uploadFile(
@@ -537,14 +708,23 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error("Invalid action");
     }
 
-    console.log("Result:", result);
+    console.log("\n=== RESULTADO FINAL ===");
+    console.log(JSON.stringify(result, null, 2));
+    console.log("╔════════════════════════════════════════════════════════════╗");
+    console.log("║  OPERAÇÃO CONCLUÍDA COM SUCESSO                           ║");
+    console.log("╚════════════════════════════════════════════════════════════╝");
 
     return new Response(JSON.stringify(result), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    console.error("Error in google-drive-folders function:", error);
+    console.error("\n╔════════════════════════════════════════════════════════════╗");
+    console.error("║  ERRO NA OPERAÇÃO                                         ║");
+    console.error("╚════════════════════════════════════════════════════════════╝");
+    console.error("Mensagem:", error.message);
+    console.error("Stack:", error.stack);
+    
     return new Response(
       JSON.stringify({ error: error.message }),
       {
