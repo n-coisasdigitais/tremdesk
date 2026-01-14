@@ -10,7 +10,8 @@ import {
   Search,
   FileText,
   Link as LinkIcon,
-  ExternalLink
+  ExternalLink,
+  Building2
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -32,7 +33,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { useDayLogs, DayLog as DayLogType, DAYLOG_TAGS, TAG_COLORS } from '@/hooks/useDayLogs';
+import { useDayLogs, DayLog as DayLogType } from '@/hooks/useDayLogs';
+import { useDayLogTags } from '@/hooks/useDayLogTags';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
@@ -42,20 +44,29 @@ interface Profile {
   avatar_url: string | null;
 }
 
+interface Company {
+  id: string;
+  name: string;
+}
+
 export default function DayLog() {
   const navigate = useNavigate();
   const { dayLogs, loading, fetchDayLogs } = useDayLogs();
+  const { tags: dynamicTags, getTagColors } = useDayLogTags();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedUser, setSelectedUser] = useState<string>('all');
+  const [selectedCompany, setSelectedCompany] = useState<string>('all');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [teamMembers, setTeamMembers] = useState<Profile[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
 
   useEffect(() => {
     fetchTeamMembers();
+    fetchCompanies();
   }, []);
 
   useEffect(() => {
-    const filters: { date?: string; userId?: string; tags?: string[] } = {};
+    const filters: { date?: string; userId?: string; tags?: string[]; companyId?: string } = {};
     
     if (selectedDate) {
       filters.date = format(selectedDate, 'yyyy-MM-dd');
@@ -63,12 +74,15 @@ export default function DayLog() {
     if (selectedUser && selectedUser !== 'all') {
       filters.userId = selectedUser;
     }
+    if (selectedCompany && selectedCompany !== 'all') {
+      filters.companyId = selectedCompany;
+    }
     if (selectedTags.length > 0) {
       filters.tags = selectedTags;
     }
     
     fetchDayLogs(Object.keys(filters).length > 0 ? filters : undefined);
-  }, [selectedDate, selectedUser, selectedTags]);
+  }, [selectedDate, selectedUser, selectedCompany, selectedTags]);
 
   const fetchTeamMembers = async () => {
     const { data } = await supabase
@@ -77,6 +91,15 @@ export default function DayLog() {
       .order('full_name');
     
     if (data) setTeamMembers(data);
+  };
+
+  const fetchCompanies = async () => {
+    const { data } = await supabase
+      .from('companies')
+      .select('id, name')
+      .order('name');
+    
+    if (data) setCompanies(data);
   };
 
   const toggleTag = (tag: string) => {
@@ -90,6 +113,7 @@ export default function DayLog() {
   const clearFilters = () => {
     setSelectedDate(undefined);
     setSelectedUser('all');
+    setSelectedCompany('all');
     setSelectedTags([]);
   };
 
@@ -157,8 +181,24 @@ export default function DayLog() {
                   </SelectContent>
                 </Select>
 
+                {/* Company Filter */}
+                <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                  <SelectTrigger className="w-[200px]">
+                    <Building2 className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Filtrar por empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as empresas</SelectItem>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
                 {/* Clear Filters */}
-                {(selectedDate || selectedUser !== 'all' || selectedTags.length > 0) && (
+                {(selectedDate || selectedUser !== 'all' || selectedCompany !== 'all' || selectedTags.length > 0) && (
                   <Button variant="ghost" onClick={clearFilters} className="text-muted-foreground">
                     Limpar filtros
                   </Button>
@@ -171,22 +211,22 @@ export default function DayLog() {
                   <Tag className="h-4 w-4 mr-1" />
                   Tags:
                 </span>
-                {DAYLOG_TAGS.map((tag) => {
-                  const colors = TAG_COLORS[tag];
-                  const isSelected = selectedTags.includes(tag);
+                {dynamicTags.map((tag) => {
+                  const isSelected = selectedTags.includes(tag.name);
                   return (
                     <Badge
-                      key={tag}
+                      key={tag.id}
                       variant="outline"
                       className={cn(
                         'cursor-pointer transition-all',
                         isSelected 
-                          ? `${colors.bg} ${colors.text} border-transparent` 
+                          ? 'border-transparent' 
                           : 'hover:bg-muted'
                       )}
-                      onClick={() => toggleTag(tag)}
+                      style={isSelected ? { backgroundColor: tag.bg_color, color: tag.text_color } : {}}
+                      onClick={() => toggleTag(tag.name)}
                     >
-                      {tag}
+                      {tag.name}
                     </Badge>
                   );
                 })}
@@ -219,7 +259,7 @@ export default function DayLog() {
                 <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="font-medium text-foreground mb-1">Nenhum DayLog encontrado</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  {selectedDate || selectedUser !== 'all' || selectedTags.length > 0
+                  {selectedDate || selectedUser !== 'all' || selectedCompany !== 'all' || selectedTags.length > 0
                     ? 'Tente ajustar os filtros ou crie um novo registro'
                     : 'Comece registrando suas atividades do dia'}
                 </p>
@@ -236,6 +276,7 @@ export default function DayLog() {
                 log={log} 
                 onClick={() => navigate(`/daylog/${log.id}`)}
                 getInitials={getInitials}
+                getTagColors={getTagColors}
               />
             ))
           )}
@@ -249,9 +290,10 @@ interface DayLogCardProps {
   log: DayLogType;
   onClick: () => void;
   getInitials: (name: string) => string;
+  getTagColors: (tagName: string) => { bg: string; text: string };
 }
 
-function DayLogCard({ log, onClick, getInitials }: DayLogCardProps) {
+function DayLogCard({ log, onClick, getInitials, getTagColors }: DayLogCardProps) {
   const profile = log.profiles;
   const previewText = log.work_done.slice(0, 150) + (log.work_done.length > 150 ? '...' : '');
 
@@ -280,6 +322,13 @@ function DayLogCard({ log, onClick, getInitials }: DayLogCardProps) {
                 <span className="text-sm text-muted-foreground">
                   {format(new Date(log.date), "dd 'de' MMMM", { locale: ptBR })}
                 </span>
+                {/* Company indicator */}
+                {log.company && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1 bg-muted px-2 py-0.5 rounded">
+                    <Building2 className="h-3 w-3" />
+                    {log.company.name}
+                  </span>
+                )}
               </div>
               
               {/* Indicators */}
@@ -307,12 +356,13 @@ function DayLogCard({ log, onClick, getInitials }: DayLogCardProps) {
             {log.tags && log.tags.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
                 {log.tags.map((tag) => {
-                  const colors = TAG_COLORS[tag] || { bg: 'bg-gray-100', text: 'text-gray-700' };
+                  const colors = getTagColors(tag);
                   return (
                     <Badge
                       key={tag}
                       variant="secondary"
-                      className={cn('text-xs', colors.bg, colors.text)}
+                      className="text-xs"
+                      style={{ backgroundColor: colors.bg, color: colors.text }}
                     >
                       {tag}
                     </Badge>

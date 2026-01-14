@@ -35,13 +35,15 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Users as UsersIcon, Plus, Pencil, Trash2, Search, UserPlus, Camera, Loader2, Ban } from 'lucide-react';
+import { Users as UsersIcon, Plus, Pencil, Trash2, Search, UserPlus, Camera, Loader2, Ban, BookOpen } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { Navigate } from 'react-router-dom';
 
 interface UserWithRole {
   id: string;
   full_name: string;
   avatar_url: string | null;
+  can_access_daylog: boolean;
   roles: { role: string; company_id: string | null; company_name?: string }[];
   teams?: { team_id: string; team_name: string }[];
 }
@@ -174,6 +176,7 @@ const Users = () => {
         id: profile.id,
         full_name: profile.full_name,
         avatar_url: profile.avatar_url,
+        can_access_daylog: profile.can_access_daylog ?? true,
         roles: roles
           ?.filter(r => r.user_id === profile.id)
           .map(r => ({
@@ -375,6 +378,30 @@ const Users = () => {
   // Check if user is an admin (not super_admin, not client roles)
   const isUserAdmin = (user: UserWithRole) => {
     return user.roles.some(r => r.role === 'admin') && !user.roles.some(r => r.role === 'super_admin');
+  };
+
+  const handleToggleDaylogAccess = async (userId: string, currentValue: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ can_access_daylog: !currentValue })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Permissão atualizada',
+        description: `Acesso ao DayLog ${!currentValue ? 'habilitado' : 'desabilitado'}.`,
+      });
+
+      fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao atualizar permissão',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
   };
 
   // Edit user handlers
@@ -681,6 +708,7 @@ const Users = () => {
                     <TableHead>Usuário</TableHead>
                     <TableHead>Funções</TableHead>
                     <TableHead>Equipes</TableHead>
+                    <TableHead>DayLog</TableHead>
                     <TableHead className="w-[140px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -740,6 +768,13 @@ const Users = () => {
                             ))
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={user.can_access_daylog}
+                          onCheckedChange={() => handleToggleDaylogAccess(user.id, user.can_access_daylog)}
+                          title={user.can_access_daylog ? 'Desabilitar acesso ao DayLog' : 'Habilitar acesso ao DayLog'}
+                        />
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">

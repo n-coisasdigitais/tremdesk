@@ -127,6 +127,7 @@ export const useAuth = () => {
   const isTeamMember = hasRole('team_member');
   const isClientAdmin = hasRole('client_admin');
   const isClientUser = hasRole('client_user');
+  const canAccessDaylog = profile?.can_access_daylog ?? true;
 
   return {
     user,
@@ -144,6 +145,7 @@ export const useAuth = () => {
     isAdmin,
     isTeamMember,
     isClientAdmin,
-    isClientUser
+    isClientUser,
+    canAccessDaylog
   };
 };

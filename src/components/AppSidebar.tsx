@@ -39,7 +39,7 @@ import {
 export function AppSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAdmin, isTeamMember } = useAuth();
+  const { isAdmin, isTeamMember, canAccessDaylog } = useAuth();
 
   const mainItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -56,6 +56,7 @@ export function AppSidebar() {
     { path: '/admin/companies', label: 'Empresas', icon: Building2 },
     { path: '/admin/teams', label: 'Times', icon: Users },
     { path: '/admin/categories', label: 'Categorias', icon: Tags },
+    { path: '/admin/daylog-tags', label: 'Tags DayLog', icon: BookOpen },
     { path: '/admin/announcements', label: 'Avisos', icon: Megaphone },
   ];
 
@@ -97,7 +98,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {(isAdmin || isTeamMember) && (
+        {(isAdmin || isTeamMember) && canAccessDaylog && (
           <SidebarGroup>
             <SidebarGroupLabel>Interno</SidebarGroupLabel>
             <SidebarGroupContent>
