@@ -1,4 +1,4 @@
-export type AppRole = 'admin' | 'team_member' | 'client_admin' | 'client_user';
+export type AppRole = 'super_admin' | 'admin' | 'team_member' | 'client_admin' | 'client_user';
 
 export type TicketStatus = 'novo' | 'em_andamento' | 'aguardando_aprovacao' | 'aprovado' | 'concluido' | 'cancelado' | 'arquivado';
 

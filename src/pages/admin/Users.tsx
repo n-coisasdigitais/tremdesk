@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { Layout } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdminExclusions, AdminExclusion } from '@/hooks/useAdminExclusions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -33,7 +35,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Users as UsersIcon, Plus, Pencil, Trash2, Search, UserPlus, Camera, Loader2 } from 'lucide-react';
+import { Users as UsersIcon, Plus, Pencil, Trash2, Search, UserPlus, Camera, Loader2, Ban } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
 interface UserWithRole {
@@ -55,6 +57,7 @@ interface Team {
 }
 
 const roleLabels: Record<string, string> = {
+  super_admin: 'Super Admin',
   admin: 'Administrador',
   team_member: 'Membro da Equipe',
   client_admin: 'Admin do Cliente',
@@ -62,7 +65,8 @@ const roleLabels: Record<string, string> = {
 };
 
 const Users = () => {
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, isSuperAdmin, user: currentUser, loading: authLoading } = useAuth();
+  const { getExclusionsForUser, syncExclusions, loading: exclusionsLoading } = useAdminExclusions();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -97,6 +101,12 @@ const Users = () => {
   const [isTeamDialogOpen, setIsTeamDialogOpen] = useState(false);
   const [selectedUserForTeam, setSelectedUserForTeam] = useState<UserWithRole | null>(null);
   const [newTeamId, setNewTeamId] = useState<string | null>(null);
+
+  // Exclusions dialog (super_admin only)
+  const [isExclusionsDialogOpen, setIsExclusionsDialogOpen] = useState(false);
+  const [selectedUserForExclusions, setSelectedUserForExclusions] = useState<UserWithRole | null>(null);
+  const [exclusionCompanyIds, setExclusionCompanyIds] = useState<string[]>([]);
+  const [loadingExclusions, setLoadingExclusions] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -329,6 +339,42 @@ const Users = () => {
         variant: 'destructive',
       });
     }
+  };
+
+  // Exclusions handlers (super_admin only)
+  const openExclusionsDialog = async (user: UserWithRole) => {
+    setSelectedUserForExclusions(user);
+    setLoadingExclusions(true);
+    setIsExclusionsDialogOpen(true);
+    
+    const exclusions = await getExclusionsForUser(user.id);
+    setExclusionCompanyIds(exclusions.map(e => e.company_id));
+    setLoadingExclusions(false);
+  };
+
+  const handleSaveExclusions = async () => {
+    if (!selectedUserForExclusions) return;
+    
+    const success = await syncExclusions(selectedUserForExclusions.id, exclusionCompanyIds);
+    if (success) {
+      setIsExclusionsDialogOpen(false);
+      setSelectedUserForExclusions(null);
+      setExclusionCompanyIds([]);
+      fetchUsers();
+    }
+  };
+
+  const toggleExclusionCompany = (companyId: string) => {
+    setExclusionCompanyIds(prev => 
+      prev.includes(companyId)
+        ? prev.filter(id => id !== companyId)
+        : [...prev, companyId]
+    );
+  };
+
+  // Check if user is an admin (not super_admin, not client roles)
+  const isUserAdmin = (user: UserWithRole) => {
+    return user.roles.some(r => r.role === 'admin') && !user.roles.some(r => r.role === 'super_admin');
   };
 
   // Edit user handlers
@@ -837,6 +883,18 @@ const Users = () => {
                               </DialogFooter>
                             </DialogContent>
                           </Dialog>
+                          
+                          {/* Manage Exclusions Button (super_admin only, for admin users) */}
+                          {isSuperAdmin && isUserAdmin(user) && user.id !== currentUser?.id && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openExclusionsDialog(user)}
+                              title="Gerenciar empresas bloqueadas"
+                            >
+                              <Ban className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -917,6 +975,81 @@ const Users = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Manage Exclusions Dialog (super_admin only) */}
+        {isSuperAdmin && (
+          <Dialog open={isExclusionsDialogOpen} onOpenChange={(open) => {
+            setIsExclusionsDialogOpen(open);
+            if (!open) {
+              setSelectedUserForExclusions(null);
+              setExclusionCompanyIds([]);
+            }
+          }}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Ban className="h-5 w-5" />
+                  Gerenciar Exclusões
+                </DialogTitle>
+                <DialogDescription>
+                  Selecione as empresas que <strong>{selectedUserForExclusions?.full_name}</strong> NÃO pode acessar.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                {loadingExclusions ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                    {companies.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-4">
+                        Nenhuma empresa cadastrada.
+                      </p>
+                    ) : (
+                      companies.map((company) => (
+                        <div 
+                          key={company.id} 
+                          className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
+                          onClick={() => toggleExclusionCompany(company.id)}
+                        >
+                          <Checkbox
+                            id={`exclusion-${company.id}`}
+                            checked={exclusionCompanyIds.includes(company.id)}
+                            onCheckedChange={() => toggleExclusionCompany(company.id)}
+                          />
+                          <label 
+                            htmlFor={`exclusion-${company.id}`}
+                            className="flex-1 cursor-pointer font-medium"
+                          >
+                            {company.name}
+                          </label>
+                          {exclusionCompanyIds.includes(company.id) && (
+                            <Badge variant="destructive" className="text-xs">
+                              Bloqueado
+                            </Badge>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsExclusionsDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={handleSaveExclusions} 
+                  disabled={exclusionsLoading || loadingExclusions}
+                >
+                  {exclusionsLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Salvar Exclusões
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </Layout>
   );

@@ -122,7 +122,8 @@ export const useAuth = () => {
     return roles.some(r => r.role === role);
   };
 
-  const isAdmin = hasRole('admin');
+  const isSuperAdmin = hasRole('super_admin');
+  const isAdmin = hasRole('admin') || isSuperAdmin;
   const isTeamMember = hasRole('team_member');
   const isClientAdmin = hasRole('client_admin');
   const isClientUser = hasRole('client_user');
@@ -139,6 +140,7 @@ export const useAuth = () => {
     resetPassword,
     updatePassword,
     hasRole,
+    isSuperAdmin,
     isAdmin,
     isTeamMember,
     isClientAdmin,
