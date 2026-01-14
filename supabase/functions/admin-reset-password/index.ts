@@ -18,11 +18,68 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
+    // Validate authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      console.error("Missing or invalid Authorization header");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: Missing authentication" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseAdmin.auth.getClaims(token);
+
+    if (claimsError || !claimsData?.claims) {
+      console.error("Invalid token:", claimsError?.message);
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: Invalid token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const requestingUserId = claimsData.claims.sub;
+    console.log("Password reset requested by user:", requestingUserId);
+
+    // Verify the requesting user has admin or super_admin role
+    const { data: roles, error: rolesError } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", requestingUserId)
+      .in("role", ["admin", "super_admin"]);
+
+    if (rolesError) {
+      console.error("Error checking user roles:", rolesError.message);
+      return new Response(
+        JSON.stringify({ error: "Error verifying permissions" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!roles || roles.length === 0) {
+      console.error("User does not have admin privileges:", requestingUserId);
+      return new Response(
+        JSON.stringify({ error: "Forbidden: Admin access required" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Admin verified, proceeding with password reset");
+
     const { email, newPassword } = await req.json();
 
-    if (!email || !newPassword) {
+    // Input validation
+    if (!email || typeof email !== "string" || !email.includes("@")) {
       return new Response(
-        JSON.stringify({ error: "Email and newPassword are required" }),
+        JSON.stringify({ error: "Valid email is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!newPassword || typeof newPassword !== "string" || newPassword.length < 6) {
+      return new Response(
+        JSON.stringify({ error: "Password must be at least 6 characters" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -31,12 +88,14 @@ serve(async (req) => {
     const { data: users, error: listError } = await supabaseAdmin.auth.admin.listUsers();
     
     if (listError) {
+      console.error("Error listing users:", listError.message);
       throw listError;
     }
 
     const user = users.users.find(u => u.email === email);
     
     if (!user) {
+      console.log("User not found for email:", email);
       return new Response(
         JSON.stringify({ error: "User not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -50,8 +109,11 @@ serve(async (req) => {
     );
 
     if (updateError) {
+      console.error("Error updating password:", updateError.message);
       throw updateError;
     }
+
+    console.log("Password successfully updated for user:", email, "by admin:", requestingUserId);
 
     return new Response(
       JSON.stringify({ success: true, message: `Password updated for ${email}` }),
