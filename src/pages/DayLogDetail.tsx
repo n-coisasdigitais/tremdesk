@@ -59,6 +59,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { CreateTicketFromDayLog } from '@/components/CreateTicketFromDayLog';
 import { DayLogComments } from '@/components/DayLogComments';
 import { SendDayLogEmailDialog } from '@/components/SendDayLogEmailDialog';
+import { DayLogTipTapEditor } from '@/components/DayLogTipTapEditor';
 import { cn } from '@/lib/utils';
 
 export default function DayLogDetail() {
@@ -90,6 +91,9 @@ export default function DayLogDetail() {
     work_done: '',
     work_pending: '',
     next_steps: '',
+    work_done_json: null,
+    work_pending_json: null,
+    next_steps_json: null,
     tags: [],
     transcription_url: '',
     ai_assistant_url: '',
@@ -116,6 +120,9 @@ export default function DayLogDetail() {
         work_done: data.work_done,
         work_pending: data.work_pending || '',
         next_steps: data.next_steps || '',
+        work_done_json: data.work_done_json || null,
+        work_pending_json: data.work_pending_json || null,
+        next_steps_json: data.next_steps_json || null,
         tags: data.tags || [],
         transcription_url: data.transcription_url || '',
         ai_assistant_url: data.ai_assistant_url || '',
