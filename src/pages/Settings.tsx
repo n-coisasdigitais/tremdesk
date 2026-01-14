@@ -23,7 +23,7 @@ interface SystemSetting {
 }
 
 const Settings = () => {
-  const { user, profile, isAdmin } = useAuth();
+  const { user, profile, isAdmin, isSuperAdmin } = useAuth();
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [isLoading, setIsLoading] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -305,7 +305,7 @@ const Settings = () => {
               <User className="h-4 w-4" />
               Perfil
             </TabsTrigger>
-            {isAdmin && (
+            {isSuperAdmin && (
               <>
                 <TabsTrigger value="integracoes" className="flex items-center gap-2">
                   <Settings2 className="h-4 w-4" />
@@ -428,8 +428,8 @@ const Settings = () => {
             </div>
           </TabsContent>
 
-          {/* Integrations Tab (Admin only) */}
-          {isAdmin && (
+          {/* Integrations Tab (Super Admin only) */}
+          {isSuperAdmin && (
             <>
             <TabsContent value="integracoes">
               {settingsLoading ? (
