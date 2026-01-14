@@ -60,6 +60,7 @@ import { CreateTicketFromDayLog } from '@/components/CreateTicketFromDayLog';
 import { DayLogComments } from '@/components/DayLogComments';
 import { SendDayLogEmailDialog } from '@/components/SendDayLogEmailDialog';
 import { DayLogTipTapEditor } from '@/components/DayLogTipTapEditor';
+import { DayLogEmailHistory } from '@/components/DayLogEmailHistory';
 import { cn } from '@/lib/utils';
 
 export default function DayLogDetail() {
@@ -750,6 +751,9 @@ export default function DayLogDetail() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Email History Section */}
+            <DayLogEmailHistory dayLogId={dayLog.id} />
 
             {/* Comments Section */}
             <DayLogComments 

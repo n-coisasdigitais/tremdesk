@@ -40,7 +40,7 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function generateDayLogHtml(dayLog: DayLog, senderName: string): string {
+function generateDayLogHtml(dayLog: DayLog, senderName: string, recipients: string[]): string {
   const tagColors: Record<string, { bg: string; text: string }> = {
     'Reunião': { bg: '#dbeafe', text: '#1e40af' },
     'Estratégia': { bg: '#dcfce7', text: '#166534' },
@@ -91,6 +91,15 @@ function generateDayLogHtml(dayLog: DayLog, senderName: string): string {
               ${companyName ? `<p style="margin: 0; font-size: 14px; color: #64748b;">${companyName}</p>` : ''}
             </div>
           </div>
+
+          ${recipients.length > 1 ? `
+          <!-- Recipients Info -->
+          <div style="margin-bottom: 24px; padding: 12px 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <p style="margin: 0; font-size: 12px; color: #64748b;">
+              📨 <strong>Este relatório foi enviado para:</strong> ${recipients.join(', ')}
+            </p>
+          </div>
+          ` : ''}
 
           ${dayLog.description ? `
           <!-- Description -->
@@ -282,7 +291,7 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     // Generate HTML email
-    const html = generateDayLogHtml(dayLogWithProfile as DayLog, senderName);
+    const html = generateDayLogHtml(dayLogWithProfile as DayLog, senderName, body.recipients);
     const dateFormatted = new Date(dayLog.date).toLocaleDateString('pt-BR');
     const subject = `📋 DayLog de ${senderName} - ${dateFormatted}`;
 

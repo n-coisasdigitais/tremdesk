@@ -18,6 +18,7 @@ import Teams from "./pages/admin/Teams";
 import Announcements from "./pages/admin/Announcements";
 import Categories from "./pages/admin/Categories";
 import DayLogTags from "./pages/admin/DayLogTags";
+import SavedContacts from "./pages/admin/SavedContacts";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -57,6 +58,7 @@ const App = () => (
           <Route path="/admin/announcements" element={<ProtectedRoute><Announcements /></ProtectedRoute>} />
           <Route path="/admin/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
           <Route path="/admin/daylog-tags" element={<ProtectedRoute><DayLogTags /></ProtectedRoute>} />
+          <Route path="/admin/contacts" element={<ProtectedRoute><SavedContacts /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
