@@ -251,12 +251,11 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("day_log_id and recipients are required");
     }
 
-    // Fetch the DayLog with profile and company
+    // Fetch the DayLog with company
     const { data: dayLog, error: dayLogError } = await supabase
       .from("day_logs")
       .select(`
         *,
-        profiles:user_id (full_name, avatar_url),
         companies:company_id (name, logo_url)
       `)
       .eq("id", body.day_log_id)
@@ -269,8 +268,21 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("DayLog fetched:", dayLog.id);
 
+    // Fetch the profile separately since there's no FK relationship
+    const { data: authorProfile } = await supabase
+      .from("profiles")
+      .select("full_name, avatar_url")
+      .eq("id", dayLog.user_id)
+      .single();
+
+    // Merge profile data into dayLog object
+    const dayLogWithProfile = {
+      ...dayLog,
+      profiles: authorProfile || { full_name: senderName, avatar_url: null }
+    };
+
     // Generate HTML email
-    const html = generateDayLogHtml(dayLog as DayLog, senderName);
+    const html = generateDayLogHtml(dayLogWithProfile as DayLog, senderName);
     const dateFormatted = new Date(dayLog.date).toLocaleDateString('pt-BR');
     const subject = `📋 DayLog de ${senderName} - ${dateFormatted}`;
 
