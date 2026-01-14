@@ -12,6 +12,7 @@ import {
   KanbanSquare,
   Megaphone,
   BookOpen,
+  Contact,
   Tags,
 } from 'lucide-react';
 import {
@@ -57,6 +58,7 @@ export function AppSidebar() {
     { path: '/admin/teams', label: 'Times', icon: Users },
     { path: '/admin/categories', label: 'Categorias', icon: Tags },
     { path: '/admin/daylog-tags', label: 'Tags DayLog', icon: BookOpen },
+    { path: '/admin/contacts', label: 'Contatos', icon: Contact },
     { path: '/admin/announcements', label: 'Avisos', icon: Megaphone },
   ];
 
