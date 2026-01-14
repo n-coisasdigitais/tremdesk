@@ -32,7 +32,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { useDayLogs, DAYLOG_TAGS, TAG_COLORS, DayLogFormData } from '@/hooks/useDayLogs';
+import { useDayLogs, DayLogFormData } from '@/hooks/useDayLogs';
+import { useDayLogTags } from '@/hooks/useDayLogTags';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -45,6 +46,7 @@ interface Company {
 export default function DayLogNew() {
   const navigate = useNavigate();
   const { createDayLog } = useDayLogs();
+  const { tags: dynamicTags } = useDayLogTags();
   const { profile, isAdmin, isTeamMember } = useAuth();
   const [saving, setSaving] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -283,22 +285,20 @@ export default function DayLogNew() {
           <CardContent>
             <Label className="mb-3 block">Tags</Label>
             <div className="flex flex-wrap gap-2">
-              {DAYLOG_TAGS.map((tag) => {
-                const colors = TAG_COLORS[tag];
-                const isSelected = formData.tags.includes(tag);
+              {dynamicTags.map((tag) => {
+                const isSelected = formData.tags.includes(tag.name);
                 return (
                   <Badge
-                    key={tag}
+                    key={tag.id}
                     variant="outline"
                     className={cn(
                       'cursor-pointer transition-all px-3 py-1',
-                      isSelected 
-                        ? `${colors.bg} ${colors.text} border-transparent` 
-                        : 'hover:bg-muted'
+                      isSelected ? 'border-transparent' : 'hover:bg-muted'
                     )}
-                    onClick={() => toggleTag(tag)}
+                    style={isSelected ? { backgroundColor: tag.bg_color, color: tag.text_color } : {}}
+                    onClick={() => toggleTag(tag.name)}
                   >
-                    {tag}
+                    {tag.name}
                   </Badge>
                 );
               })}

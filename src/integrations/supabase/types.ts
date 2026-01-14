@@ -415,6 +415,44 @@ export type Database = {
           },
         ]
       }
+      daylog_tags: {
+        Row: {
+          active: boolean | null
+          bg_color: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          name: string
+          text_color: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          bg_color?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name: string
+          text_color?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          bg_color?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name?: string
+          text_color?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daylog_tags_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       error_logs: {
         Row: {
           company_id: string | null
@@ -567,6 +605,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          can_access_daylog: boolean
           created_at: string
           full_name: string
           id: string
@@ -574,6 +613,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          can_access_daylog?: boolean
           created_at?: string
           full_name: string
           id: string
@@ -581,6 +621,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          can_access_daylog?: boolean
           created_at?: string
           full_name?: string
           id?: string

@@ -51,10 +51,9 @@ import {
   useDayLogs, 
   DayLog, 
   DayLogAttachment,
-  DAYLOG_TAGS, 
-  TAG_COLORS,
   DayLogFormData 
 } from '@/hooks/useDayLogs';
+import { useDayLogTags } from '@/hooks/useDayLogTags';
 import { useAuth } from '@/hooks/useAuth';
 import { CreateTicketFromDayLog } from '@/components/CreateTicketFromDayLog';
 import { cn } from '@/lib/utils';
@@ -70,6 +69,7 @@ export default function DayLogDetail() {
     uploadAttachment,
     deleteAttachment 
   } = useDayLogs();
+  const { tags: dynamicTags, getTagColors } = useDayLogTags();
   const { user, isAdmin } = useAuth();
   
   const [dayLog, setDayLog] = useState<DayLog | null>(null);
@@ -440,22 +440,20 @@ export default function DayLogDetail() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {DAYLOG_TAGS.map((tag) => {
-                    const colors = TAG_COLORS[tag];
-                    const isSelected = editData.tags.includes(tag);
+                  {dynamicTags.map((tag) => {
+                    const isSelected = editData.tags.includes(tag.name);
                     return (
                       <Badge
-                        key={tag}
+                        key={tag.id}
                         variant="outline"
                         className={cn(
                           'cursor-pointer transition-all px-3 py-1',
-                          isSelected 
-                            ? `${colors.bg} ${colors.text} border-transparent` 
-                            : 'hover:bg-muted'
+                          isSelected ? 'border-transparent' : 'hover:bg-muted'
                         )}
-                        onClick={() => toggleEditTag(tag)}
+                        style={isSelected ? { backgroundColor: tag.bg_color, color: tag.text_color } : {}}
+                        onClick={() => toggleEditTag(tag.name)}
                       >
-                        {tag}
+                        {tag.name}
                       </Badge>
                     );
                   })}
@@ -605,11 +603,11 @@ export default function DayLogDetail() {
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
                     {dayLog.tags.map((tag) => {
-                      const colors = TAG_COLORS[tag] || { bg: 'bg-gray-100', text: 'text-gray-700' };
+                      const colors = getTagColors(tag);
                       return (
                         <Badge
                           key={tag}
-                          className={cn(colors.bg, colors.text)}
+                          style={{ backgroundColor: colors.bg, color: colors.text }}
                         >
                           {tag}
                         </Badge>
