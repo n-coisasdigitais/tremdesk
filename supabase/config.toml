@@ -17,3 +17,6 @@ verify_jwt = true
 
 [functions.auth-email-hook]
 verify_jwt = false
+
+[functions.send-daylog-email]
+verify_jwt = true

@@ -415,6 +415,86 @@ export type Database = {
           },
         ]
       }
+      daylog_comments: {
+        Row: {
+          content_json: Json
+          created_at: string
+          day_log_id: string
+          id: string
+          parent_comment_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          content_json: Json
+          created_at?: string
+          day_log_id: string
+          id?: string
+          parent_comment_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          content_json?: Json
+          created_at?: string
+          day_log_id?: string
+          id?: string
+          parent_comment_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daylog_comments_day_log_id_fkey"
+            columns: ["day_log_id"]
+            isOneToOne: false
+            referencedRelation: "day_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daylog_comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "daylog_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daylog_email_sends: {
+        Row: {
+          day_log_id: string
+          id: string
+          sent_at: string
+          sent_by: string | null
+          sent_to: string[]
+          subject: string | null
+        }
+        Insert: {
+          day_log_id: string
+          id?: string
+          sent_at?: string
+          sent_by?: string | null
+          sent_to: string[]
+          subject?: string | null
+        }
+        Update: {
+          day_log_id?: string
+          id?: string
+          sent_at?: string
+          sent_by?: string | null
+          sent_to?: string[]
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daylog_email_sends_day_log_id_fkey"
+            columns: ["day_log_id"]
+            isOneToOne: false
+            referencedRelation: "day_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daylog_tags: {
         Row: {
           active: boolean | null
