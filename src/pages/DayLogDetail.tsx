@@ -18,7 +18,8 @@ import {
   Upload,
   X,
   Save,
-  Plus
+  Plus,
+  Mail
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,8 @@ import {
 import { useDayLogTags } from '@/hooks/useDayLogTags';
 import { useAuth } from '@/hooks/useAuth';
 import { CreateTicketFromDayLog } from '@/components/CreateTicketFromDayLog';
+import { DayLogComments } from '@/components/DayLogComments';
+import { SendDayLogEmailDialog } from '@/components/SendDayLogEmailDialog';
 import { cn } from '@/lib/utils';
 
 export default function DayLogDetail() {
@@ -288,6 +291,10 @@ export default function DayLogDetail() {
                     <Edit className="h-4 w-4" />
                     Editar
                   </Button>
+                  <SendDayLogEmailDialog 
+                    dayLogId={dayLog.id}
+                    dayLogDate={format(new Date(dayLog.date), "dd/MM/yyyy")}
+                  />
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="destructive" className="gap-2">
@@ -736,6 +743,13 @@ export default function DayLogDetail() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Comments Section */}
+            <DayLogComments 
+              dayLogId={dayLog.id}
+              dayLogDescription={dayLog.description || undefined}
+              companyId={dayLog.company_id || undefined}
+            />
           </>
         )}
       </div>
