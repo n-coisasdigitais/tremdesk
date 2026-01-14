@@ -36,6 +36,7 @@ import { useDayLogs, DayLogFormData } from '@/hooks/useDayLogs';
 import { useDayLogTags } from '@/hooks/useDayLogTags';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { DayLogTipTapEditor } from '@/components/DayLogTipTapEditor';
 import { cn } from '@/lib/utils';
 
 interface Company {
@@ -57,6 +58,9 @@ export default function DayLogNew() {
     work_done: '',
     work_pending: '',
     next_steps: '',
+    work_done_json: null,
+    work_pending_json: null,
+    next_steps_json: null,
     tags: [],
     transcription_url: '',
     ai_assistant_url: '',
@@ -241,37 +245,45 @@ export default function DayLogNew() {
               <Label htmlFor="work_done">
                 O que foi feito hoje <span className="text-destructive">*</span>
               </Label>
-              <Textarea
-                id="work_done"
+              <DayLogTipTapEditor
+                content={formData.work_done_json}
+                onChange={(json, text) => setFormData(prev => ({ 
+                  ...prev, 
+                  work_done: text,
+                  work_done_json: json 
+                }))}
                 placeholder="Descreva as atividades realizadas hoje..."
-                className="min-h-[150px]"
-                value={formData.work_done}
-                onChange={(e) => setFormData(prev => ({ ...prev, work_done: e.target.value }))}
-                required
+                minHeight="150px"
               />
             </div>
 
             {/* Work Pending */}
             <div className="space-y-2">
               <Label htmlFor="work_pending">O que ficou pendente</Label>
-              <Textarea
-                id="work_pending"
+              <DayLogTipTapEditor
+                content={formData.work_pending_json}
+                onChange={(json, text) => setFormData(prev => ({ 
+                  ...prev, 
+                  work_pending: text,
+                  work_pending_json: json 
+                }))}
                 placeholder="Atividades que não foram concluídas..."
-                className="min-h-[100px]"
-                value={formData.work_pending}
-                onChange={(e) => setFormData(prev => ({ ...prev, work_pending: e.target.value }))}
+                minHeight="100px"
               />
             </div>
 
             {/* Next Steps */}
             <div className="space-y-2">
               <Label htmlFor="next_steps">Próximos passos</Label>
-              <Textarea
-                id="next_steps"
+              <DayLogTipTapEditor
+                content={formData.next_steps_json}
+                onChange={(json, text) => setFormData(prev => ({ 
+                  ...prev, 
+                  next_steps: text,
+                  next_steps_json: json 
+                }))}
                 placeholder="O que precisa ser feito em seguida..."
-                className="min-h-[100px]"
-                value={formData.next_steps}
-                onChange={(e) => setFormData(prev => ({ ...prev, next_steps: e.target.value }))}
+                minHeight="100px"
               />
             </div>
           </CardContent>

@@ -362,12 +362,15 @@ export type Database = {
           id: string
           meeting_notes: string | null
           next_steps: string | null
+          next_steps_json: Json | null
           tags: string[] | null
           transcription_url: string | null
           updated_at: string | null
           user_id: string
           work_done: string
+          work_done_json: Json | null
           work_pending: string | null
+          work_pending_json: Json | null
         }
         Insert: {
           ai_assistant_url?: string | null
@@ -380,12 +383,15 @@ export type Database = {
           id?: string
           meeting_notes?: string | null
           next_steps?: string | null
+          next_steps_json?: Json | null
           tags?: string[] | null
           transcription_url?: string | null
           updated_at?: string | null
           user_id: string
           work_done: string
+          work_done_json?: Json | null
           work_pending?: string | null
+          work_pending_json?: Json | null
         }
         Update: {
           ai_assistant_url?: string | null
@@ -398,12 +404,15 @@ export type Database = {
           id?: string
           meeting_notes?: string | null
           next_steps?: string | null
+          next_steps_json?: Json | null
           tags?: string[] | null
           transcription_url?: string | null
           updated_at?: string | null
           user_id?: string
           work_done?: string
+          work_done_json?: Json | null
           work_pending?: string | null
+          work_pending_json?: Json | null
         }
         Relationships: [
           {
@@ -705,6 +714,39 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      saved_contacts: {
+        Row: {
+          company: string | null
+          created_at: string
+          created_by: string
+          email: string
+          id: string
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          created_by: string
+          email: string
+          id?: string
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          created_by?: string
+          email?: string
+          id?: string
+          name?: string
+          notes?: string | null
           updated_at?: string
         }
         Relationships: []

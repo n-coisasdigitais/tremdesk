@@ -12,6 +12,9 @@ export interface DayLog {
   work_done: string;
   work_pending: string | null;
   next_steps: string | null;
+  work_done_json: any | null;
+  work_pending_json: any | null;
+  next_steps_json: any | null;
   tags: string[];
   transcription_url: string | null;
   ai_assistant_url: string | null;
@@ -49,6 +52,9 @@ export interface DayLogFormData {
   work_done: string;
   work_pending?: string;
   next_steps?: string;
+  work_done_json?: any;
+  work_pending_json?: any;
+  next_steps_json?: any;
   tags: string[];
   transcription_url?: string;
   ai_assistant_url?: string;
@@ -163,6 +169,9 @@ export const useDayLogs = () => {
           work_done: formData.work_done,
           work_pending: formData.work_pending || null,
           next_steps: formData.next_steps || null,
+          work_done_json: formData.work_done_json || null,
+          work_pending_json: formData.work_pending_json || null,
+          next_steps_json: formData.next_steps_json || null,
           tags: formData.tags,
           transcription_url: formData.transcription_url || null,
           ai_assistant_url: formData.ai_assistant_url || null,
