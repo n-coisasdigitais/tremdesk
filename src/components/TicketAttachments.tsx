@@ -223,21 +223,53 @@ export const TicketAttachments = ({ ticketId, companyId }: TicketAttachmentsProp
 
     if (uploadError) throw uploadError;
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('attachments')
-      .getPublicUrl(fileName);
+    // Store the file path (not public URL) for later signed URL generation
+    // Format: attachments/{ticketId}/{timestamp}-{random}.{ext}
+    const storagePath = fileName;
 
-    // Save attachment record
+    // Save attachment record with the storage path
     const { error: insertError } = await supabase.from('ticket_attachments').insert({
       ticket_id: ticketId,
       file_name: file.name,
       file_type: file.type,
-      file_url: urlData.publicUrl,
+      file_url: storagePath, // Store path, not public URL
       uploaded_by: user?.id,
     });
 
     if (insertError) throw insertError;
+  };
+
+  // Generate signed URL for secure file access
+  const getSignedUrl = async (filePath: string): Promise<string | null> => {
+    // If it's a Google Drive URL, return as-is
+    if (filePath.startsWith('http')) {
+      return filePath;
+    }
+    
+    // Generate signed URL with 1 hour expiration
+    const { data, error } = await supabase.storage
+      .from('attachments')
+      .createSignedUrl(filePath, 3600);
+    
+    if (error) {
+      console.error('Error creating signed URL:', error);
+      return null;
+    }
+    
+    return data.signedUrl;
+  };
+
+  const handleOpenFile = async (attachment: TicketAttachment) => {
+    const url = await getSignedUrl(attachment.file_url);
+    if (url) {
+      window.open(url, '_blank');
+    } else {
+      toast({
+        title: 'Erro ao abrir arquivo',
+        description: 'Não foi possível gerar URL de acesso.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const fileToBase64 = (file: File): Promise<string> => {
@@ -258,10 +290,16 @@ export const TicketAttachments = ({ ticketId, companyId }: TicketAttachmentsProp
 
     try {
       // If it's a Supabase Storage file, delete from storage too
-      if (!attachment.google_drive_file_id && attachment.file_url.includes('supabase')) {
-        const path = attachment.file_url.split('/attachments/')[1];
-        if (path) {
-          await supabase.storage.from('attachments').remove([path]);
+      if (!attachment.google_drive_file_id) {
+        // Check if it's a full URL (legacy) or just a path (new format)
+        let storagePath = attachment.file_url;
+        if (attachment.file_url.includes('supabase')) {
+          // Legacy: extract path from full URL
+          storagePath = attachment.file_url.split('/attachments/')[1] || '';
+        }
+        
+        if (storagePath) {
+          await supabase.storage.from('attachments').remove([storagePath]);
         }
       }
 
@@ -370,7 +408,7 @@ export const TicketAttachments = ({ ticketId, companyId }: TicketAttachmentsProp
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => window.open(attachment.file_url, '_blank')}
+                  onClick={() => handleOpenFile(attachment)}
                   title="Abrir arquivo"
                 >
                   <ExternalLink className="h-4 w-4" />
