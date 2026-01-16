@@ -83,7 +83,7 @@ export const DayLogTipTapEditor = ({
   }
 
   return (
-    <div className="border rounded-md overflow-hidden bg-background">
+    <div className={`overflow-hidden bg-background ${editable ? 'border rounded-md' : ''}`}>
       {editable && (
         <div className="flex flex-wrap gap-1 p-2 border-b bg-muted/50">
           <Button

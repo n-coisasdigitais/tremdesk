@@ -545,8 +545,16 @@ export default function DayLogDetail() {
                     O que foi feito
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-foreground whitespace-pre-wrap">{dayLog.work_done}</p>
+              <CardContent>
+                  {dayLog.work_done_json ? (
+                    <DayLogTipTapEditor
+                      content={dayLog.work_done_json}
+                      editable={false}
+                      minHeight="auto"
+                    />
+                  ) : (
+                    <p className="text-foreground whitespace-pre-wrap">{dayLog.work_done}</p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -574,7 +582,15 @@ export default function DayLogDetail() {
                     )}
                   </CardHeader>
                   <CardContent>
-                    <p className="text-foreground whitespace-pre-wrap">{dayLog.work_pending}</p>
+                    {dayLog.work_pending_json ? (
+                      <DayLogTipTapEditor
+                        content={dayLog.work_pending_json}
+                        editable={false}
+                        minHeight="auto"
+                      />
+                    ) : (
+                      <p className="text-foreground whitespace-pre-wrap">{dayLog.work_pending}</p>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -603,7 +619,15 @@ export default function DayLogDetail() {
                     )}
                   </CardHeader>
                   <CardContent>
-                    <p className="text-foreground whitespace-pre-wrap">{dayLog.next_steps}</p>
+                    {dayLog.next_steps_json ? (
+                      <DayLogTipTapEditor
+                        content={dayLog.next_steps_json}
+                        editable={false}
+                        minHeight="auto"
+                      />
+                    ) : (
+                      <p className="text-foreground whitespace-pre-wrap">{dayLog.next_steps}</p>
+                    )}
                   </CardContent>
                 </Card>
               )}
