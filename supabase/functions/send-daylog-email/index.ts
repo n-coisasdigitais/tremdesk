@@ -20,6 +20,9 @@ interface DayLog {
   work_done: string;
   work_pending: string | null;
   next_steps: string | null;
+  work_done_json: any | null;
+  work_pending_json: any | null;
+  next_steps_json: any | null;
   tags: string[] | null;
   transcription_url: string | null;
   ai_assistant_url: string | null;
@@ -38,6 +41,108 @@ function formatDate(dateStr: string): string {
     month: 'long',
     day: 'numeric'
   });
+}
+
+// Get current time in Brazil timezone (UTC-3)
+function getBrazilDateTime(): string {
+  const now = new Date();
+  // Adjust to Brazil timezone (UTC-3)
+  const brazilOffset = -3 * 60; // minutes
+  const localOffset = now.getTimezoneOffset(); // minutes
+  const brazilTime = new Date(now.getTime() + (localOffset + brazilOffset) * 60000);
+  
+  return brazilTime.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+// Convert TipTap JSON to HTML for emails
+function tiptapJsonToHtml(json: any): string {
+  if (!json || !json.content) return '';
+  
+  const renderNode = (node: any): string => {
+    if (!node) return '';
+    
+    switch (node.type) {
+      case 'doc':
+        return (node.content || []).map(renderNode).join('');
+      
+      case 'paragraph':
+        const pContent = (node.content || []).map(renderNode).join('');
+        return pContent ? `<p style="margin: 8px 0;">${pContent}</p>` : '<p style="margin: 8px 0;"><br></p>';
+      
+      case 'heading':
+        const level = node.attrs?.level || 2;
+        const hContent = (node.content || []).map(renderNode).join('');
+        const sizes: Record<number, string> = {
+          1: '24px',
+          2: '20px',
+          3: '18px',
+          4: '16px',
+        };
+        return `<h${level} style="margin: 12px 0 8px; font-size: ${sizes[level] || '16px'}; font-weight: 600;">${hContent}</h${level}>`;
+      
+      case 'bulletList':
+        return `<ul style="margin: 8px 0; padding-left: 24px; list-style-type: disc;">${(node.content || []).map(renderNode).join('')}</ul>`;
+      
+      case 'orderedList':
+        return `<ol style="margin: 8px 0; padding-left: 24px; list-style-type: decimal;">${(node.content || []).map(renderNode).join('')}</ol>`;
+      
+      case 'listItem':
+        return `<li style="margin: 4px 0;">${(node.content || []).map(renderNode).join('')}</li>`;
+      
+      case 'text':
+        let text = node.text || '';
+        
+        // Apply marks
+        if (node.marks) {
+          for (const mark of node.marks) {
+            switch (mark.type) {
+              case 'bold':
+                text = `<strong>${text}</strong>`;
+                break;
+              case 'italic':
+                text = `<em>${text}</em>`;
+                break;
+              case 'link':
+                text = `<a href="${mark.attrs?.href}" style="color: #3b82f6; text-decoration: underline;">${text}</a>`;
+                break;
+            }
+          }
+        }
+        
+        return text;
+      
+      case 'hardBreak':
+        return '<br>';
+      
+      default:
+        if (node.content) {
+          return (node.content || []).map(renderNode).join('');
+        }
+        return '';
+    }
+  };
+  
+  return renderNode(json);
+}
+
+// Render content: use JSON if available, otherwise plain text
+function renderContent(jsonContent: any, plainText: string | null): string {
+  if (jsonContent) {
+    return tiptapJsonToHtml(jsonContent);
+  }
+  if (plainText) {
+    // Convert plain text to HTML with proper line breaks
+    return plainText.split('\n').map(line => 
+      line.trim() ? `<p style="margin: 8px 0;">${line}</p>` : ''
+    ).join('');
+  }
+  return '';
 }
 
 function generateDayLogHtml(dayLog: DayLog, senderName: string, recipients: string[]): string {
@@ -59,6 +164,11 @@ function generateDayLogHtml(dayLog: DayLog, senderName: string, recipients: stri
 
   const companyName = dayLog.companies?.name || '';
   const companyLogo = dayLog.companies?.logo_url || '';
+
+  // Render formatted content
+  const workDoneHtml = renderContent(dayLog.work_done_json, dayLog.work_done);
+  const workPendingHtml = renderContent(dayLog.work_pending_json, dayLog.work_pending);
+  const nextStepsHtml = renderContent(dayLog.next_steps_json, dayLog.next_steps);
 
   return `
     <!DOCTYPE html>
@@ -114,26 +224,26 @@ function generateDayLogHtml(dayLog: DayLog, senderName: string, recipients: stri
             <h2 style="margin: 0 0 12px; font-size: 16px; color: #166534; display: flex; align-items: center;">
               ✅ O que foi feito
             </h2>
-            <div style="color: #1e293b; white-space: pre-wrap;">${dayLog.work_done}</div>
+            <div style="color: #1e293b;">${workDoneHtml}</div>
           </div>
 
-          ${dayLog.work_pending ? `
+          ${dayLog.work_pending || dayLog.work_pending_json ? `
           <!-- Work Pending -->
           <div style="margin-bottom: 24px; padding: 20px; background: #fefce8; border-radius: 8px; border-left: 4px solid #eab308;">
             <h2 style="margin: 0 0 12px; font-size: 16px; color: #854d0e; display: flex; align-items: center;">
               ⏳ O que ficou pendente
             </h2>
-            <div style="color: #1e293b; white-space: pre-wrap;">${dayLog.work_pending}</div>
+            <div style="color: #1e293b;">${workPendingHtml}</div>
           </div>
           ` : ''}
 
-          ${dayLog.next_steps ? `
+          ${dayLog.next_steps || dayLog.next_steps_json ? `
           <!-- Next Steps -->
           <div style="margin-bottom: 24px; padding: 20px; background: #eff6ff; border-radius: 8px; border-left: 4px solid #3b82f6;">
             <h2 style="margin: 0 0 12px; font-size: 16px; color: #1e40af; display: flex; align-items: center;">
               🎯 Próximos passos
             </h2>
-            <div style="color: #1e293b; white-space: pre-wrap;">${dayLog.next_steps}</div>
+            <div style="color: #1e293b;">${nextStepsHtml}</div>
           </div>
           ` : ''}
 
@@ -180,7 +290,7 @@ function generateDayLogHtml(dayLog: DayLog, senderName: string, recipients: stri
         <div style="background: #f8fafc; padding: 24px; text-align: center; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
           <p style="margin: 0; font-size: 12px; color: #94a3b8;">
             Este email foi enviado pelo Sistema de Demandas.<br>
-            Relatório gerado automaticamente em ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}.
+            Relatório gerado automaticamente em ${getBrazilDateTime()} (horário de Brasília).
           </p>
         </div>
 
@@ -260,7 +370,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("day_log_id and recipients are required");
     }
 
-    // Fetch the DayLog with company
+    // Fetch the DayLog with company - including JSON fields
     const { data: dayLog, error: dayLogError } = await supabase
       .from("day_logs")
       .select(`
