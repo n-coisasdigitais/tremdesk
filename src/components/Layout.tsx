@@ -1,8 +1,8 @@
-import { ReactNode, useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ReactNode, useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,20 +10,16 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge';
-import { Bell, LogOut, Settings, Menu } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/AppSidebar';
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { Bell, LogOut, Settings, Menu } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
 
 interface LayoutProps {
   children: ReactNode;
@@ -46,20 +42,20 @@ export const Layout = ({ children }: LayoutProps) => {
   useEffect(() => {
     if (user) {
       fetchNotifications();
-      
+
       const channel = supabase
-        .channel('notifications_changes')
+        .channel("notifications_changes")
         .on(
-          'postgres_changes',
+          "postgres_changes",
           {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'notifications',
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
             filter: `user_id=eq.${user.id}`,
           },
           () => {
             fetchNotifications();
-          }
+          },
         )
         .subscribe();
 
@@ -73,10 +69,10 @@ export const Layout = ({ children }: LayoutProps) => {
     if (!user) return;
 
     const { data } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+      .from("notifications")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
       .limit(10);
 
     if (data) {
@@ -86,10 +82,7 @@ export const Layout = ({ children }: LayoutProps) => {
   };
 
   const markAsRead = async (notificationId: string) => {
-    await supabase
-      .from('notifications')
-      .update({ read_at: new Date().toISOString() })
-      .eq('id', notificationId);
+    await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", notificationId);
 
     fetchNotifications();
   };
@@ -98,39 +91,39 @@ export const Layout = ({ children }: LayoutProps) => {
     if (!user) return;
 
     await supabase
-      .from('notifications')
+      .from("notifications")
       .update({ read_at: new Date().toISOString() })
-      .eq('user_id', user.id)
-      .is('read_at', null);
+      .eq("user_id", user.id)
+      .is("read_at", null);
 
     fetchNotifications();
   };
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/auth');
+    navigate("/auth");
   };
 
   const getNotificationText = (notification: Notification) => {
     switch (notification.type) {
-      case 'mention':
-        return 'Você foi mencionado em uma demanda';
-      case 'comment':
-        return 'Novo comentário em sua demanda';
-      case 'status_change':
-        return 'Status da demanda alterado';
-      case 'approval':
-        return 'Demanda aprovada';
-      case 'changes_requested':
-        return 'Alterações solicitadas';
-      case 'new_ticket':
-        return 'Nova demanda criada';
-      case 'email_reply':
-        return 'Resposta recebida por email';
-      case 'assigned':
-        return 'Uma demanda foi atribuída a você';
+      case "mention":
+        return "Você foi mencionado em uma demanda";
+      case "comment":
+        return "Novo comentário em sua demanda";
+      case "status_change":
+        return "Status da demanda alterado";
+      case "approval":
+        return "Demanda aprovada";
+      case "changes_requested":
+        return "Alterações solicitadas";
+      case "new_ticket":
+        return "Nova demanda criada";
+      case "email_reply":
+        return "Resposta recebida por email";
+      case "assigned":
+        return "Uma demanda foi atribuída a você";
       default:
-        return 'Nova notificação';
+        return "Nova notificação";
     }
   };
 
@@ -138,7 +131,7 @@ export const Layout = ({ children }: LayoutProps) => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
-        
+
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Header */}
           <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -175,9 +168,7 @@ export const Layout = ({ children }: LayoutProps) => {
                     </div>
                     <ScrollArea className="h-72">
                       {notifications.length === 0 ? (
-                        <div className="p-4 text-center text-muted-foreground text-sm">
-                          Nenhuma notificação
-                        </div>
+                        <div className="p-4 text-center text-muted-foreground text-sm">Nenhuma notificação</div>
                       ) : (
                         <div className="divide-y">
                           {notifications.map((notification) => (
@@ -190,12 +181,10 @@ export const Layout = ({ children }: LayoutProps) => {
                                 }
                               }}
                               className={`w-full text-left p-4 hover:bg-muted/50 transition-colors ${
-                                !notification.read_at ? 'bg-primary/5' : ''
+                                !notification.read_at ? "bg-primary/5" : ""
                               }`}
                             >
-                              <p className="text-sm font-medium">
-                                {getNotificationText(notification)}
-                              </p>
+                              <p className="text-sm font-medium">{getNotificationText(notification)}</p>
                               <p className="text-xs text-muted-foreground mt-1">
                                 {format(new Date(notification.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
                               </p>
@@ -213,9 +202,7 @@ export const Layout = ({ children }: LayoutProps) => {
                     <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name} />
-                        <AvatarFallback>
-                          {profile?.full_name?.charAt(0).toUpperCase() || 'U'}
-                        </AvatarFallback>
+                        <AvatarFallback>{profile?.full_name?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
@@ -224,13 +211,21 @@ export const Layout = ({ children }: LayoutProps) => {
                       <div className="flex flex-col space-y-1">
                         <p className="text-sm font-medium leading-none">{profile?.full_name}</p>
                         <div className="flex gap-1 mt-1">
-                          {isAdmin && <Badge variant="secondary" className="text-xs">Admin</Badge>}
-                          {isTeamMember && <Badge variant="secondary" className="text-xs">Equipe</Badge>}
+                          {isAdmin && (
+                            <Badge variant="secondary" className="text-xs">
+                              Admin
+                            </Badge>
+                          )}
+                          {isTeamMember && (
+                            <Badge variant="secondary" className="text-xs">
+                              Equipe
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => navigate('/settings')}>
+                    <DropdownMenuItem onClick={() => navigate("/settings")}>
                       <Settings className="mr-2 h-4 w-4" />
                       <span>Configurações</span>
                     </DropdownMenuItem>
@@ -246,19 +241,17 @@ export const Layout = ({ children }: LayoutProps) => {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 p-4 sm:p-6 overflow-y-auto overflow-x-hidden">
-            {children}
-          </main>
+          <main className="flex-1 p-4 sm:p-6 overflow-y-auto overflow-x-hidden">{children}</main>
 
           {/* Footer */}
           <footer className="border-t bg-background/95 py-4 px-6">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
-              <p>© {new Date().getFullYear()} Trem Desk. Todos os direitos reservados.</p>
+              <p>© {new Date().getFullYear()} Rita Projetos. Todos os direitos reservados.</p>
               <p>
-                Desenvolvido por{' '}
-                <a 
-                  href="https://www.ncoisas.digital" 
-                  target="_blank" 
+                Desenvolvido por{" "}
+                <a
+                  href="https://www.ncoisas.digital"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-ncoisas-lime hover:underline font-medium"
                 >
