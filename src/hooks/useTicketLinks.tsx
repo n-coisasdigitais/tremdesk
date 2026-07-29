@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Ticket } from '@/types';
+import { useState, useEffect, useMemo } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Ticket } from "@/types";
 
 interface TicketLink {
   id: string;
@@ -22,8 +22,8 @@ export function useTicketLinks() {
   useEffect(() => {
     const fetchLinks = async () => {
       const { data, error } = await supabase
-        .from('ticket_links')
-        .select('id, source_ticket_id, target_ticket_id, link_type');
+        .from("ticket_links")
+        .select("id, source_ticket_id, target_ticket_id, link_type");
 
       if (!error && data) {
         setLinks(data);
@@ -33,10 +33,12 @@ export function useTicketLinks() {
 
     fetchLinks();
 
-    // Subscribe to realtime changes
+    // Subscribe to realtime changes.
+    // Nome único por instância evita reaproveitar um canal já inscrito quando
+    // o StrictMode monta o efeito 2x em dev (removeChannel é assíncrono).
     const channel = supabase
-      .channel('ticket_links_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_links' }, () => {
+      .channel(`ticket_links_changes_${crypto.randomUUID()}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "ticket_links" }, () => {
         fetchLinks();
       })
       .subscribe();
@@ -70,7 +72,7 @@ export function useTicketLinks() {
     // Group tickets by their root
     const groups: Record<string, Set<string>> = {};
     const allTicketIds = new Set<string>();
-    
+
     links.forEach((link) => {
       allTicketIds.add(link.source_ticket_id);
       allTicketIds.add(link.target_ticket_id);
@@ -97,13 +99,13 @@ export function useTicketLinks() {
 
   // Get link count for a ticket
   const getLinkCount = (ticketId: string): number => {
-    return links.filter(
-      (l) => l.source_ticket_id === ticketId || l.target_ticket_id === ticketId
-    ).length;
+    return links.filter((l) => l.source_ticket_id === ticketId || l.target_ticket_id === ticketId).length;
   };
 
   // Sort tickets with linked ones grouped together
-  const sortTicketsWithGroups = (tickets: Ticket[]): { ticket: Ticket; isGrouped: boolean; isFirst: boolean; isLast: boolean; groupSize: number }[] => {
+  const sortTicketsWithGroups = (
+    tickets: Ticket[],
+  ): { ticket: Ticket; isGrouped: boolean; isFirst: boolean; isLast: boolean; groupSize: number }[] => {
     const ticketMap = new Map(tickets.map((t) => [t.id, t]));
     const processed = new Set<string>();
     const result: { ticket: Ticket; isGrouped: boolean; isFirst: boolean; isLast: boolean; groupSize: number }[] = [];
@@ -119,7 +121,7 @@ export function useTicketLinks() {
       if (processed.has(ticket.id)) return;
 
       const linkedIds = getTicketGroup(ticket.id);
-      
+
       if (linkedIds.length > 1) {
         // Get all linked tickets that are in the same status AND in current ticket list
         const sameStatusLinked = linkedIds
