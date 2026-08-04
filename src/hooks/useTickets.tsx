@@ -399,7 +399,10 @@ export const useTickets = () => {
 
   const updateTicket = async (ticketId: string, updates: Partial<Ticket>) => {
     try {
-      const { error } = await supabase.from("tickets").update(updates).eq("id", ticketId);
+      // Remove relation fields (not real columns) before sending to the database
+      const { company, creator, assignee, categories, watchers, ...columns } = updates;
+
+      const { error } = await supabase.from("tickets").update(columns).eq("id", ticketId);
 
       if (error) throw error;
 
