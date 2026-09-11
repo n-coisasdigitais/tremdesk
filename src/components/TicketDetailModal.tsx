@@ -1,24 +1,41 @@
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
-import { Textarea } from '@/components/ui/textarea';
-import { TipTapEditor } from './TipTapEditor';
-import { TicketAttachments } from './TicketAttachments';
-import { TicketChecklist } from './TicketChecklist';
-import { TicketLinks } from './TicketLinks';
-import { ApprovalItemsPanel } from './ApprovalItemsPanel';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
-import { useEmailNotifications } from '@/hooks/useEmailNotifications';
-import { Ticket, TicketComment, Approval, Profile } from '@/types';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { Check, X, Clock, MessageSquare, Activity, Send, UserPlus, Trash2, Archive } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { TipTapEditor } from "./TipTapEditor";
+import { TicketAttachments } from "./TicketAttachments";
+import { TicketChecklist } from "./TicketChecklist";
+import { TicketLinks } from "./TicketLinks";
+import { ApprovalItemsPanel } from "./ApprovalItemsPanel";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { useEmailNotifications } from "@/hooks/useEmailNotifications";
+import { Ticket, TicketComment, Approval, Profile } from "@/types";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import {
+  Check,
+  X,
+  Clock,
+  MessageSquare,
+  Activity,
+  Send,
+  UserPlus,
+  Trash2,
+  Archive,
+  Copy,
+  Link as LinkIcon,
+} from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+// NOVO — base do link público de acompanhamento (mesma lógica usada no
+// formulário de nova demanda). Todo ticket tem token_acompanhamento
+// preenchido automaticamente pelo banco (default gen_random_uuid()).
+const TRACKING_BASE_URL = "https://atendimento.ncoisas.digital/acompanhar";
 
 interface TicketDetailModalProps {
   ticket: Ticket | null;
@@ -28,25 +45,25 @@ interface TicketDetailModalProps {
 }
 
 const statusConfig = {
-  novo: { label: 'Novo', color: 'bg-blue-500' },
-  em_andamento: { label: 'Em Andamento', color: 'bg-yellow-500' },
-  aguardando_aprovacao: { label: 'Aguardando Aprovação', color: 'bg-orange-500' },
-  aprovado: { label: 'Aprovado', color: 'bg-green-500' },
-  concluido: { label: 'Concluído', color: 'bg-gray-500' },
-  cancelado: { label: 'Cancelado', color: 'bg-red-500' },
-  arquivado: { label: 'Arquivado', color: 'bg-slate-500' },
+  novo: { label: "Novo", color: "bg-blue-500" },
+  em_andamento: { label: "Em Andamento", color: "bg-yellow-500" },
+  aguardando_aprovacao: { label: "Aguardando Aprovação", color: "bg-orange-500" },
+  aprovado: { label: "Aprovado", color: "bg-green-500" },
+  concluido: { label: "Concluído", color: "bg-gray-500" },
+  cancelado: { label: "Cancelado", color: "bg-red-500" },
+  arquivado: { label: "Arquivado", color: "bg-slate-500" },
 };
 
 const priorityConfig = {
-  baixa: { label: 'Baixa', color: 'bg-blue-100 text-blue-800' },
-  media: { label: 'Média', color: 'bg-yellow-100 text-yellow-800' },
-  alta: { label: 'Alta', color: 'bg-orange-100 text-orange-800' },
-  urgente: { label: 'Urgente', color: 'bg-red-100 text-red-800' },
+  baixa: { label: "Baixa", color: "bg-blue-100 text-blue-800" },
+  media: { label: "Média", color: "bg-yellow-100 text-yellow-800" },
+  alta: { label: "Alta", color: "bg-orange-100 text-orange-800" },
+  urgente: { label: "Urgente", color: "bg-red-100 text-red-800" },
 };
 
 interface ActivityItem {
   id: string;
-  type: 'comment' | 'activity' | 'approval';
+  type: "comment" | "activity" | "approval";
   created_at: string;
   user?: Profile;
   content?: any;
@@ -65,10 +82,12 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
   const [activities, setActivities] = useState<any[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [newComment, setNewComment] = useState<any>(null);
-  const [approvalFeedback, setApprovalFeedback] = useState('');
+  const [approvalFeedback, setApprovalFeedback] = useState("");
   const [loading, setLoading] = useState(false);
   const [timeline, setTimeline] = useState<ActivityItem[]>([]);
   const [teamMembers, setTeamMembers] = useState<Profile[]>([]);
+  // NOVO — feedback visual do botão "Copiar link de acompanhamento"
+  const [trackingLinkCopied, setTrackingLinkCopied] = useState(false);
 
   useEffect(() => {
     if (ticket && open) {
@@ -79,52 +98,46 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
 
   const fetchTeamMembers = async () => {
     if (!ticket) return;
-    
+
     // Fetch team members who have access to this company
     const { data: teamClients } = await supabase
-      .from('team_clients')
-      .select('team_id')
-      .eq('company_id', ticket.company_id);
-    
+      .from("team_clients")
+      .select("team_id")
+      .eq("company_id", ticket.company_id);
+
     if (!teamClients || teamClients.length === 0) {
       // If no team is assigned, fetch all team members
       const { data: allTeamMembers } = await supabase
-        .from('user_roles')
-        .select('user_id, profiles:user_id(id, full_name, avatar_url)')
-        .in('role', ['admin', 'team_member']);
-      
+        .from("user_roles")
+        .select("user_id, profiles:user_id(id, full_name, avatar_url)")
+        .in("role", ["admin", "team_member"]);
+
       if (allTeamMembers) {
-        const profiles = allTeamMembers
-          .map((tm: any) => tm.profiles)
-          .filter(Boolean);
+        const profiles = allTeamMembers.map((tm: any) => tm.profiles).filter(Boolean);
         setTeamMembers(profiles);
       }
       return;
     }
-    
-    const teamIds = teamClients.map(tc => tc.team_id);
-    
+
+    const teamIds = teamClients.map((tc) => tc.team_id);
+
     const { data: members } = await supabase
-      .from('team_members')
-      .select('user_id, profiles:user_id(id, full_name, avatar_url)')
-      .in('team_id', teamIds);
-    
+      .from("team_members")
+      .select("user_id, profiles:user_id(id, full_name, avatar_url)")
+      .in("team_id", teamIds);
+
     if (members) {
-      const profiles = members
-        .map((m: any) => m.profiles)
-        .filter(Boolean);
+      const profiles = members.map((m: any) => m.profiles).filter(Boolean);
       // Add admins too
       const { data: admins } = await supabase
-        .from('user_roles')
-        .select('user_id, profiles:user_id(id, full_name, avatar_url)')
-        .eq('role', 'admin');
-      
+        .from("user_roles")
+        .select("user_id, profiles:user_id(id, full_name, avatar_url)")
+        .eq("role", "admin");
+
       const adminProfiles = admins?.map((a: any) => a.profiles).filter(Boolean) || [];
       const allProfiles = [...profiles, ...adminProfiles];
       // Remove duplicates
-      const uniqueProfiles = allProfiles.filter((p, i, arr) => 
-        arr.findIndex(x => x.id === p.id) === i
-      );
+      const uniqueProfiles = allProfiles.filter((p, i, arr) => arr.findIndex((x) => x.id === p.id) === i);
       setTeamMembers(uniqueProfiles);
     }
   };
@@ -134,38 +147,38 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
 
     // Fetch comments
     const { data: commentsData } = await supabase
-      .from('ticket_comments')
-      .select('*, user:profiles(*)')
-      .eq('ticket_id', ticket.id)
-      .order('created_at', { ascending: true });
+      .from("ticket_comments")
+      .select("*, user:profiles(*)")
+      .eq("ticket_id", ticket.id)
+      .order("created_at", { ascending: true });
 
     // Fetch activities
     const { data: activitiesData } = await supabase
-      .from('ticket_activities')
-      .select('*, user:profiles(*)')
-      .eq('ticket_id', ticket.id)
-      .order('created_at', { ascending: true });
+      .from("ticket_activities")
+      .select("*, user:profiles(*)")
+      .eq("ticket_id", ticket.id)
+      .order("created_at", { ascending: true });
 
     // Fetch approvals
     const { data: approvalsData } = await supabase
-      .from('approvals')
-      .select('*, approved_by:profiles(*)')
-      .eq('ticket_id', ticket.id)
-      .order('created_at', { ascending: true });
+      .from("approvals")
+      .select("*, approved_by:profiles(*)")
+      .eq("ticket_id", ticket.id)
+      .order("created_at", { ascending: true });
 
     // Build timeline
     const timelineItems: ActivityItem[] = [
       ...(commentsData || []).map((c: any) => ({
         ...c,
-        type: 'comment' as const,
+        type: "comment" as const,
       })),
       ...(activitiesData || []).map((a: any) => ({
         ...a,
-        type: 'activity' as const,
+        type: "activity" as const,
       })),
       ...(approvalsData || []).map((a: any) => ({
         ...a,
-        type: 'approval' as const,
+        type: "approval" as const,
         user: a.approved_by,
       })),
     ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -181,49 +194,54 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
 
     setLoading(true);
     try {
-      const { data: commentData, error } = await supabase.from('ticket_comments').insert([{
-        ticket_id: ticket.id,
-        user_id: user.id,
-        content_json: newComment,
-      }]).select().single();
+      const { data: commentData, error } = await supabase
+        .from("ticket_comments")
+        .insert([
+          {
+            ticket_id: ticket.id,
+            user_id: user.id,
+            content_json: newComment,
+          },
+        ])
+        .select()
+        .single();
 
       if (error) throw error;
 
       // Check for mentions in the content and create notifications
       const mentions = extractMentions(newComment);
       const commentPreview = extractTextPreview(newComment);
-      
+
       for (const mentionedUserId of mentions) {
         // Create mention record
-        await supabase.from('mentions').insert([{
-          ticket_id: ticket.id,
-          mentioned_user_id: mentionedUserId,
-          mentioned_by: user.id,
-          comment_id: commentData?.id,
-        }]);
-        
+        await supabase.from("mentions").insert([
+          {
+            ticket_id: ticket.id,
+            mentioned_user_id: mentionedUserId,
+            mentioned_by: user.id,
+            comment_id: commentData?.id,
+          },
+        ]);
+
         // Create in-app notification
-        await supabase.from('notifications').insert([{
-          user_id: mentionedUserId,
-          type: 'mention',
-          ticket_id: ticket.id,
-          reference_id: commentData?.id,
-        }]);
-        
+        await supabase.from("notifications").insert([
+          {
+            user_id: mentionedUserId,
+            type: "mention",
+            ticket_id: ticket.id,
+            reference_id: commentData?.id,
+          },
+        ]);
+
         // Send email notification
-        await notifyMention(
-          mentionedUserId,
-          ticket.title,
-          profile?.full_name || 'Alguém',
-          commentPreview
-        );
+        await notifyMention(mentionedUserId, ticket.title, profile?.full_name || "Alguém", commentPreview);
       }
 
       setNewComment(null);
       await fetchData();
-      toast({ title: 'Comentário adicionado!' });
+      toast({ title: "Comentário adicionado!" });
     } catch (error: any) {
-      toast({ title: 'Erro ao adicionar comentário', description: error.message, variant: 'destructive' });
+      toast({ title: "Erro ao adicionar comentário", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -232,7 +250,7 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
   const extractTextPreview = (content: any): string => {
     const texts: string[] = [];
     const traverse = (node: any) => {
-      if (node.type === 'text' && node.text) {
+      if (node.type === "text" && node.text) {
         texts.push(node.text);
       }
       if (node.content) {
@@ -242,14 +260,14 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
     if (content?.content) {
       content.content.forEach(traverse);
     }
-    const fullText = texts.join(' ');
-    return fullText.length > 150 ? fullText.substring(0, 150) + '...' : fullText;
+    const fullText = texts.join(" ");
+    return fullText.length > 150 ? fullText.substring(0, 150) + "..." : fullText;
   };
 
   const extractMentions = (content: any): string[] => {
     const mentions: string[] = [];
     const traverse = (node: any) => {
-      if (node.type === 'mention' && node.attrs?.id) {
+      if (node.type === "mention" && node.attrs?.id) {
         mentions.push(node.attrs.id);
       }
       if (node.content) {
@@ -268,36 +286,42 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
     setLoading(true);
     try {
       // Create approval record
-      await supabase.from('approvals').insert([{
-        ticket_id: ticket.id,
-        approved_by: user.id,
-        status: 'approved',
-      }]);
+      await supabase.from("approvals").insert([
+        {
+          ticket_id: ticket.id,
+          approved_by: user.id,
+          status: "approved",
+        },
+      ]);
 
       // Update ticket status
-      await supabase.from('tickets').update({ status: 'aprovado' }).eq('id', ticket.id);
+      await supabase.from("tickets").update({ status: "aprovado" }).eq("id", ticket.id);
 
       // Log activity
-      await supabase.from('ticket_activities').insert([{
-        ticket_id: ticket.id,
-        user_id: user.id,
-        action_type: 'approved',
-      }]);
+      await supabase.from("ticket_activities").insert([
+        {
+          ticket_id: ticket.id,
+          user_id: user.id,
+          action_type: "approved",
+        },
+      ]);
 
       // Notify team
       if (ticket.assigned_to) {
-        await supabase.from('notifications').insert([{
-          user_id: ticket.assigned_to,
-          type: 'approval',
-          ticket_id: ticket.id,
-        }]);
+        await supabase.from("notifications").insert([
+          {
+            user_id: ticket.assigned_to,
+            type: "approval",
+            ticket_id: ticket.id,
+          },
+        ]);
       }
 
-      toast({ title: 'Demanda aprovada!' });
+      toast({ title: "Demanda aprovada!" });
       await fetchData();
       onUpdate();
     } catch (error: any) {
-      toast({ title: 'Erro ao aprovar', description: error.message, variant: 'destructive' });
+      toast({ title: "Erro ao aprovar", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -309,39 +333,45 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
     setLoading(true);
     try {
       // Create approval record with changes requested
-      await supabase.from('approvals').insert([{
-        ticket_id: ticket.id,
-        approved_by: user.id,
-        status: 'changes_requested',
-        feedback_json: { text: approvalFeedback },
-      }]);
+      await supabase.from("approvals").insert([
+        {
+          ticket_id: ticket.id,
+          approved_by: user.id,
+          status: "changes_requested",
+          feedback_json: { text: approvalFeedback },
+        },
+      ]);
 
       // Update ticket status back to in progress
-      await supabase.from('tickets').update({ status: 'em_andamento' }).eq('id', ticket.id);
+      await supabase.from("tickets").update({ status: "em_andamento" }).eq("id", ticket.id);
 
       // Log activity
-      await supabase.from('ticket_activities').insert([{
-        ticket_id: ticket.id,
-        user_id: user.id,
-        action_type: 'changes_requested',
-        metadata_json: { feedback: approvalFeedback },
-      }]);
+      await supabase.from("ticket_activities").insert([
+        {
+          ticket_id: ticket.id,
+          user_id: user.id,
+          action_type: "changes_requested",
+          metadata_json: { feedback: approvalFeedback },
+        },
+      ]);
 
       // Notify team
       if (ticket.assigned_to) {
-        await supabase.from('notifications').insert([{
-          user_id: ticket.assigned_to,
-          type: 'changes_requested',
-          ticket_id: ticket.id,
-        }]);
+        await supabase.from("notifications").insert([
+          {
+            user_id: ticket.assigned_to,
+            type: "changes_requested",
+            ticket_id: ticket.id,
+          },
+        ]);
       }
 
-      toast({ title: 'Alterações solicitadas!' });
-      setApprovalFeedback('');
+      toast({ title: "Alterações solicitadas!" });
+      setApprovalFeedback("");
       await fetchData();
       onUpdate();
     } catch (error: any) {
-      toast({ title: 'Erro ao solicitar alterações', description: error.message, variant: 'destructive' });
+      toast({ title: "Erro ao solicitar alterações", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -353,24 +383,26 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
     setLoading(true);
     try {
       const updateData: any = { status: newStatus };
-      if (newStatus === 'concluido') {
+      if (newStatus === "concluido") {
         updateData.completed_at = new Date().toISOString();
       }
 
-      await supabase.from('tickets').update(updateData).eq('id', ticket.id);
+      await supabase.from("tickets").update(updateData).eq("id", ticket.id);
 
-      await supabase.from('ticket_activities').insert([{
-        ticket_id: ticket.id,
-        user_id: user.id,
-        action_type: 'status_changed',
-        metadata_json: { from: ticket.status, to: newStatus },
-      }]);
+      await supabase.from("ticket_activities").insert([
+        {
+          ticket_id: ticket.id,
+          user_id: user.id,
+          action_type: "status_changed",
+          metadata_json: { from: ticket.status, to: newStatus },
+        },
+      ]);
 
-      toast({ title: 'Status atualizado!' });
+      toast({ title: "Status atualizado!" });
       await fetchData();
       onUpdate();
     } catch (error: any) {
-      toast({ title: 'Erro ao atualizar status', description: error.message, variant: 'destructive' });
+      toast({ title: "Erro ao atualizar status", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -381,43 +413,47 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
 
     setLoading(true);
     try {
-      const newAssigneeId = assigneeId === 'unassigned' ? null : assigneeId;
-      
-      await supabase.from('tickets').update({ assigned_to: newAssigneeId }).eq('id', ticket.id);
+      const newAssigneeId = assigneeId === "unassigned" ? null : assigneeId;
 
-      const assigneeName = teamMembers.find(m => m.id === assigneeId)?.full_name || 'Ninguém';
-      
-      await supabase.from('ticket_activities').insert([{
-        ticket_id: ticket.id,
-        user_id: user.id,
-        action_type: 'assigned',
-        metadata_json: { 
-          assignee_id: newAssigneeId, 
-          assignee_name: newAssigneeId ? assigneeName : null 
+      await supabase.from("tickets").update({ assigned_to: newAssigneeId }).eq("id", ticket.id);
+
+      const assigneeName = teamMembers.find((m) => m.id === assigneeId)?.full_name || "Ninguém";
+
+      await supabase.from("ticket_activities").insert([
+        {
+          ticket_id: ticket.id,
+          user_id: user.id,
+          action_type: "assigned",
+          metadata_json: {
+            assignee_id: newAssigneeId,
+            assignee_name: newAssigneeId ? assigneeName : null,
+          },
         },
-      }]);
+      ]);
 
       // Notify assigned user via in-app notification AND email
       if (newAssigneeId && newAssigneeId !== user.id) {
         // In-app notification
-        await supabase.from('notifications').insert([{
-          user_id: newAssigneeId,
-          type: 'assigned',
-          ticket_id: ticket.id,
-        }]);
+        await supabase.from("notifications").insert([
+          {
+            user_id: newAssigneeId,
+            type: "assigned",
+            ticket_id: ticket.id,
+          },
+        ]);
 
         // Email notification
         await notifyTicketUpdated(
           [newAssigneeId],
           ticket.title,
-          `Você foi atribuído como responsável por ${profile?.full_name || 'alguém'}`
+          `Você foi atribuído como responsável por ${profile?.full_name || "alguém"}`,
         );
       }
 
-      toast({ title: 'Responsável atualizado!' });
+      toast({ title: "Responsável atualizado!" });
       onUpdate();
     } catch (error: any) {
-      toast({ title: 'Erro ao atribuir responsável', description: error.message, variant: 'destructive' });
+      toast({ title: "Erro ao atribuir responsável", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -425,30 +461,30 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
 
   const handleDeleteTicket = async () => {
     if (!ticket || !user) return;
-    
-    if (ticket.status !== 'novo') {
-      toast({ 
-        title: 'Não é possível excluir', 
+
+    if (ticket.status !== "novo") {
+      toast({
+        title: "Não é possível excluir",
         description: 'Somente demandas com status "Novo" podem ser excluídas. Use a opção "Arquivar" em vez disso.',
-        variant: 'destructive' 
+        variant: "destructive",
       });
       return;
     }
 
-    if (!window.confirm('Tem certeza que deseja excluir esta demanda? Esta ação não pode ser desfeita.')) {
+    if (!window.confirm("Tem certeza que deseja excluir esta demanda? Esta ação não pode ser desfeita.")) {
       return;
     }
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('tickets').delete().eq('id', ticket.id);
+      const { error } = await supabase.from("tickets").delete().eq("id", ticket.id);
       if (error) throw error;
 
-      toast({ title: 'Demanda excluída!' });
+      toast({ title: "Demanda excluída!" });
       onOpenChange(false);
       onUpdate();
     } catch (error: any) {
-      toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -457,37 +493,63 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
   const handleArchiveTicket = async () => {
     if (!ticket || !user) return;
 
-    if (!window.confirm('Tem certeza que deseja arquivar esta demanda?')) {
+    if (!window.confirm("Tem certeza que deseja arquivar esta demanda?")) {
       return;
     }
 
     setLoading(true);
     try {
-      await supabase.from('tickets').update({ status: 'arquivado' }).eq('id', ticket.id);
+      await supabase.from("tickets").update({ status: "arquivado" }).eq("id", ticket.id);
 
-      await supabase.from('ticket_activities').insert([{
-        ticket_id: ticket.id,
-        user_id: user.id,
-        action_type: 'status_changed',
-        metadata_json: { from: ticket.status, to: 'arquivado' },
-      }]);
+      await supabase.from("ticket_activities").insert([
+        {
+          ticket_id: ticket.id,
+          user_id: user.id,
+          action_type: "status_changed",
+          metadata_json: { from: ticket.status, to: "arquivado" },
+        },
+      ]);
 
-      toast({ title: 'Demanda arquivada!' });
+      toast({ title: "Demanda arquivada!" });
       onOpenChange(false);
       onUpdate();
     } catch (error: any) {
-      toast({ title: 'Erro ao arquivar', description: error.message, variant: 'destructive' });
+      toast({ title: "Erro ao arquivar", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // NOVO — copia o link público de acompanhamento desta demanda
+  // (atendimento.ncoisas.digital/acompanhar/:token). Todo ticket tem um
+  // token_acompanhamento gerado automaticamente pelo banco.
+  const handleCopyTrackingLink = async () => {
+    if (!ticket?.token_acompanhamento) return;
+    const url = `${TRACKING_BASE_URL}/${ticket.token_acompanhamento}`;
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setTrackingLinkCopied(true);
+      toast({
+        title: "Link copiado!",
+        description: "Envie este link para o cliente acompanhar o status, sem precisar de login.",
+      });
+      setTimeout(() => setTrackingLinkCopied(false), 2000);
+    } catch (error) {
+      toast({
+        title: "Não foi possível copiar automaticamente",
+        description: url,
+        variant: "destructive",
+      });
     }
   };
 
   if (!ticket) return null;
 
   const canChangeStatus = isAdmin || isTeamMember;
-  const canApprove = isClient && ticket.status === 'aguardando_aprovacao';
-  const canDelete = canChangeStatus && ticket.status === 'novo';
-  const canArchive = canChangeStatus && ticket.status !== 'novo' && ticket.status !== 'arquivado';
+  const canApprove = isClient && ticket.status === "aguardando_aprovacao";
+  const canDelete = canChangeStatus && ticket.status === "novo";
+  const canArchive = canChangeStatus && ticket.status !== "novo" && ticket.status !== "arquivado";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -495,9 +557,7 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-3 pr-8">
             <span className="flex-1 truncate">{ticket.title}</span>
-            <Badge className={priorityConfig[ticket.priority].color}>
-              {priorityConfig[ticket.priority].label}
-            </Badge>
+            <Badge className={priorityConfig[ticket.priority].color}>{priorityConfig[ticket.priority].label}</Badge>
           </DialogTitle>
         </DialogHeader>
 
@@ -511,14 +571,16 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(statusConfig).filter(([value]) => value !== 'arquivado').map(([value, config]) => (
-                      <SelectItem key={value} value={value}>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${config.color}`} />
-                          {config.label}
-                        </div>
-                      </SelectItem>
-                    ))}
+                    {Object.entries(statusConfig)
+                      .filter(([value]) => value !== "arquivado")
+                      .map(([value, config]) => (
+                        <SelectItem key={value} value={value}>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${config.color}`} />
+                            {config.label}
+                          </div>
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               ) : (
@@ -528,45 +590,58 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
                 </Badge>
               )}
 
-              {ticket.company && (
-                <Badge variant="secondary">{ticket.company.name}</Badge>
+              {ticket.company && <Badge variant="secondary">{ticket.company.name}</Badge>}
+
+              {ticket.protocolo && (
+                <Badge variant="outline" className="font-mono text-xs">
+                  {ticket.protocolo}
+                </Badge>
               )}
 
               {ticket.due_date && (
                 <Badge variant="outline" className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
-                  {format(new Date(ticket.due_date), 'dd/MM/yyyy', { locale: ptBR })}
+                  {format(new Date(ticket.due_date), "dd/MM/yyyy", { locale: ptBR })}
                 </Badge>
               )}
             </div>
 
-            {/* Delete/Archive Buttons */}
-            {(canDelete || canArchive) && (
-              <div className="flex gap-2">
-                {canDelete && (
-                  <Button 
-                    variant="destructive" 
-                    size="sm" 
-                    onClick={handleDeleteTicket}
-                    disabled={loading}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Excluir
-                  </Button>
-                )}
-                {canArchive && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleArchiveTicket}
-                    disabled={loading}
-                  >
-                    <Archive className="h-4 w-4 mr-1" />
-                    Arquivar
-                  </Button>
-                )}
-              </div>
-            )}
+            <div className="flex gap-2">
+              {/* NOVO — copiar link público de acompanhamento desta demanda */}
+              {ticket.token_acompanhamento && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyTrackingLink}
+                  title="Link de acompanhamento sem login"
+                >
+                  {trackingLinkCopied ? (
+                    <Check className="h-4 w-4 mr-1 text-green-600" />
+                  ) : (
+                    <Copy className="h-4 w-4 mr-1" />
+                  )}
+                  {trackingLinkCopied ? "Copiado!" : "Link de acompanhamento"}
+                </Button>
+              )}
+
+              {/* Delete/Archive Buttons */}
+              {(canDelete || canArchive) && (
+                <>
+                  {canDelete && (
+                    <Button variant="destructive" size="sm" onClick={handleDeleteTicket} disabled={loading}>
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Excluir
+                    </Button>
+                  )}
+                  {canArchive && (
+                    <Button variant="outline" size="sm" onClick={handleArchiveTicket} disabled={loading}>
+                      <Archive className="h-4 w-4 mr-1" />
+                      Arquivar
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
           {/* Assignee Selection */}
@@ -574,10 +649,7 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
             <div className="flex items-center gap-3">
               <UserPlus className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Responsável:</span>
-              <Select 
-                value={ticket.assigned_to || 'unassigned'} 
-                onValueChange={handleAssigneeChange}
-              >
+              <Select value={ticket.assigned_to || "unassigned"} onValueChange={handleAssigneeChange}>
                 <SelectTrigger className="w-56">
                   <SelectValue placeholder="Selecione responsável">
                     {ticket.assignee ? (
@@ -646,14 +718,10 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
           <TicketAttachments ticketId={ticket.id} companyId={ticket.company_id} />
 
           {/* Approval Items Panel - for art approvals */}
-          {(ticket.requires_approval || ticket.status === 'aguardando_aprovacao') && (
+          {(ticket.requires_approval || ticket.status === "aguardando_aprovacao") && (
             <>
               <Separator />
-              <ApprovalItemsPanel
-                ticketId={ticket.id}
-                canAddItems={isAdmin || isTeamMember}
-                canReview={isClient}
-              />
+              <ApprovalItemsPanel ticketId={ticket.id} canAddItems={isAdmin || isTeamMember} canReview={isClient} />
             </>
           )}
 
@@ -703,42 +771,54 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
                 <div key={`${item.type}-${item.id}`} className="flex gap-3">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={item.user?.avatar_url || undefined} />
-                    <AvatarFallback>{item.user?.full_name?.charAt(0) || '?'}</AvatarFallback>
+                    <AvatarFallback>{item.user?.full_name?.charAt(0) || "?"}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2 text-sm">
-                      <span className="font-medium">{item.user?.full_name || 'Sistema'}</span>
+                      <span className="font-medium">{item.user?.full_name || "Sistema"}</span>
                       <span className="text-muted-foreground">
                         {format(new Date(item.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
                       </span>
                     </div>
-                    
-                    {item.type === 'comment' && (
+
+                    {item.type === "comment" && (
                       <div className="border rounded-md p-3 bg-card">
                         <TipTapEditor content={(item as any).content_json} editable={false} />
                       </div>
                     )}
 
-                    {item.type === 'activity' && (
+                    {item.type === "activity" && (
                       <p className="text-sm text-muted-foreground">
-                        {item.action_type === 'status_changed' && (
-                          <>Mudou status de <Badge variant="outline">{item.metadata_json?.from}</Badge> para <Badge variant="outline">{item.metadata_json?.to}</Badge></>
+                        {item.action_type === "status_changed" && (
+                          <>
+                            Mudou status de <Badge variant="outline">{item.metadata_json?.from}</Badge> para{" "}
+                            <Badge variant="outline">{item.metadata_json?.to}</Badge>
+                          </>
                         )}
-                        {item.action_type === 'approved' && 'Aprovou a demanda'}
-                        {item.action_type === 'changes_requested' && `Solicitou alterações: ${item.metadata_json?.feedback}`}
-                        {item.action_type === 'assigned' && (
-                          item.metadata_json?.assignee_name 
-                            ? <>Atribuiu a demanda para <Badge variant="outline">{item.metadata_json.assignee_name}</Badge></>
-                            : 'Removeu a atribuição da demanda'
-                        )}
+                        {item.action_type === "approved" && "Aprovou a demanda"}
+                        {item.action_type === "changes_requested" &&
+                          `Solicitou alterações: ${item.metadata_json?.feedback}`}
+                        {item.action_type === "assigned" &&
+                          (item.metadata_json?.assignee_name ? (
+                            <>
+                              Atribuiu a demanda para{" "}
+                              <Badge variant="outline">{item.metadata_json.assignee_name}</Badge>
+                            </>
+                          ) : (
+                            "Removeu a atribuição da demanda"
+                          ))}
                       </p>
                     )}
 
-                    {item.type === 'approval' && (
-                      <div className={`text-sm p-2 rounded ${
-                        item.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
-                      }`}>
-                        {item.status === 'approved' ? '✓ Aprovado' : `⚠ Alterações solicitadas: ${item.feedback_json?.text || ''}`}
+                    {item.type === "approval" && (
+                      <div
+                        className={`text-sm p-2 rounded ${
+                          item.status === "approved" ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"
+                        }`}
+                      >
+                        {item.status === "approved"
+                          ? "✓ Aprovado"
+                          : `⚠ Alterações solicitadas: ${item.feedback_json?.text || ""}`}
                       </div>
                     )}
                   </div>
@@ -746,9 +826,7 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
               ))}
 
               {timeline.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Nenhuma atividade ainda
-                </p>
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhuma atividade ainda</p>
               )}
             </div>
           </div>
