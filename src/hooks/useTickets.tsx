@@ -206,7 +206,7 @@ export const useTickets = () => {
           console.log("Email notification skipped or failed:", err);
         });
 
-        // Notify assigned user if ticket was created with assignee
+        // Notify assigned user if ticket was created with an assignee
         if (ticketData.assigned_to) {
           // Create in-app notification (even for self-assignment for consistency)
           supabase
@@ -344,7 +344,17 @@ export const useTickets = () => {
       // Revert optimistic update on error
       setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, status: oldStatus as TicketStatus } : t)));
 
-      console.error("Error updating ticket status:", error);
+      // DIAGNÓSTICO — log completo do erro do Postgres (code/details/hint),
+      // não só a mensagem. É o que precisamos ver no console pra fechar a
+      // causa raiz do bug de mover card entre etapas (RLS, sessão expirada,
+      // etc.) em segundos, na próxima vez que acontecer.
+      console.error("Error updating ticket status:", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+
       toast({
         title: "Erro ao atualizar status",
         description: error.message,
