@@ -29,11 +29,10 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// AJUSTE VISUAL — colunas neutras (estilo Notion/Linear): a cor de
-// identidade do status fica só na bolinha do cabeçalho (`color`), o fundo
-// da coluna deixa de variar por status e vira um cinza neutro (`bgColor`).
-// Isso concentra a atenção no conteúdo dos cards em vez do "papel de
-// parede" colorido atrás deles. Ver claude/rita-melhoria-visual.md.
+// AJUSTE VISUAL: colunas neutras (estilo Notion/Linear). A cor de
+// identidade do status fica so na bolinha do cabecalho (`color`); o fundo
+// da coluna nao varia mais por status, vira cinza neutro (`bgColor`).
+// Ver claude/rita-melhoria-visual.md.
 const statusConfig: Record<TicketStatus, { label: string; color: string; bgColor: string }> = {
   novo: { label: "Novo", color: "bg-blue-500", bgColor: "bg-muted/40" },
   em_andamento: { label: "Em Andamento", color: "bg-yellow-500", bgColor: "bg-muted/40" },
@@ -121,8 +120,8 @@ const TicketCard = ({ ticket, onClick, groupInfo }: TicketCardProps) => {
       )}
 
       {/*
-        AJUSTE VISUAL — hover sem "zoom": trocamos hover:scale/shadow (efeito
-        de e-commerce) por uma leve mudança de fundo + borda, sem movimento.
+        AJUSTE VISUAL: hover sem "zoom". Trocamos hover:scale/shadow (efeito
+        de e-commerce) por uma leve mudanca de fundo e borda, sem movimento.
         Mais adequado para uma ferramenta de trabalho onde o olho passa horas.
       */}
       <Card
