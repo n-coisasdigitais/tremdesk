@@ -94,7 +94,7 @@ export const useTickets = () => {
 
       if (error) throw error;
 
-      setTickets(data || []);
+      setTickets((data || []) as Ticket[]);
     } catch (error) {
       console.error("Error fetching tickets:", error);
       toast({
