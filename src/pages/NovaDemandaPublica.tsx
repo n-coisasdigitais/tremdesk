@@ -8,19 +8,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, Paperclip, X } from "lucide-react";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
 
-// Mesma lista do enum ticket_category usada no Kanban interno (Kanban.tsx,
-// categoryIcons). Se uma categoria nova for adicionada lá, replicar aqui.
-const CATEGORIES = [
-  { value: "meta_ads", label: "Meta Ads" },
-  { value: "google_ads", label: "Google Ads" },
-  { value: "linkedin_ads", label: "LinkedIn Ads" },
-  { value: "arte", label: "Arte" },
-  { value: "relatorio", label: "Relatório" },
-  { value: "outro", label: "Outro" },
-];
+// As categorias nao sao mais uma lista fixa no codigo: vem de
+// ticket_categories (Admin > Categorias), buscadas junto com a empresa em
+// resolverEmpresa(). Quem cadastra/edita categorias no painel administrativo
+// ve o reflexo aqui, sem precisar de outro deploy.
+interface CategoriaPublica {
+  id: string;
+  name: string;
+  icon: string | null;
+  color: string | null;
+}
 
 const PRIORITIES = [
   { value: "baixa", label: "Baixa" },
@@ -28,6 +28,10 @@ const PRIORITIES = [
   { value: "alta", label: "Alta" },
   { value: "urgente", label: "Urgente" },
 ];
+
+// Limite do lado do cliente para o anexo opcional. Mantido em sincronia com
+// o limite (em base64) validado na Edge Function demanda-publica.
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5MB
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -43,12 +47,15 @@ export default function NovaDemandaPublica() {
   const [submitting, setSubmitting] = useState(false);
   const [resultado, setResultado] = useState<{ protocolo: string; tracking_url: string } | null>(null);
 
+  const [categorias, setCategorias] = useState<CategoriaPublica[]>([]);
+  const [categoryId, setCategoryId] = useState("");
+
   const [solicitanteNome, setSolicitanteNome] = useState("");
   const [solicitanteEmail, setSolicitanteEmail] = useState("");
-  const [category, setCategory] = useState("");
   const [priority, setPriority] = useState("media");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
 
   useEffect(() => {
     const resolverEmpresa = async () => {
@@ -64,6 +71,7 @@ export default function NovaDemandaPublica() {
         setLinkInvalido(true);
       } else {
         setCompanyName(data.company_name);
+        setCategorias(data.categories || []);
       }
       setLoadingEmpresa(false);
     };
@@ -71,22 +79,64 @@ export default function NovaDemandaPublica() {
   }, [slug]);
 
   const podeAvancarEtapa1 = solicitanteNome.trim() && solicitanteEmail.trim();
-  const podeAvancarEtapa2 = !!category;
+  // Se por algum motivo nao houver nenhuma categoria ativa cadastrada em
+  // Admin > Categorias, nao trava o formulario: a demanda so segue sem
+  // categoria (pode ser categorizada depois, no painel interno).
+  const podeAvancarEtapa2 = categorias.length === 0 || !!categoryId;
   const podeEnviar = title.trim() && description.trim();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (file && file.size > MAX_ATTACHMENT_BYTES) {
+      toast({
+        title: "Arquivo muito grande",
+        description:
+          "O limite atual é 5MB. Envie um arquivo menor, ou anexe depois pelo link de acompanhamento que você vai receber por e-mail.",
+        variant: "destructive",
+      });
+      e.target.value = "";
+      setAttachmentFile(null);
+      return;
+    }
+    setAttachmentFile(file);
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(",")[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
 
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
+      let attachment: { file_name: string; file_type: string; file_base64: string } | undefined;
+      if (attachmentFile) {
+        const file_base64 = await fileToBase64(attachmentFile);
+        attachment = {
+          file_name: attachmentFile.name,
+          file_type: attachmentFile.type,
+          file_base64,
+        };
+      }
+
       const { data, error } = await supabase.functions.invoke("demanda-publica", {
         body: {
           action: "criar",
           slug,
           solicitante_nome: solicitanteNome,
           solicitante_email: solicitanteEmail,
-          category,
+          category_id: categoryId || undefined,
           priority,
           title,
           description,
+          attachment,
         },
       });
 
@@ -158,7 +208,7 @@ export default function NovaDemandaPublica() {
     <CenteredShell>
       <Card className="w-full max-w-lg">
         <CardHeader>
-          <CardTitle>Nova demanda{companyName ? ` — ${companyName}` : ""}</CardTitle>
+          <CardTitle>Nova demanda{companyName ? ` - ${companyName}` : ""}</CardTitle>
           <CardDescription>Etapa {step} de 4</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -184,15 +234,16 @@ export default function NovaDemandaPublica() {
           {step === 2 && (
             <>
               <div className="space-y-2">
-                <Label>Categoria *</Label>
-                <Select value={category} onValueChange={setCategory}>
+                <Label>Categoria {categorias.length > 0 ? "*" : ""}</Label>
+                <Select value={categoryId} onValueChange={setCategoryId} disabled={categorias.length === 0}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
+                    <SelectValue placeholder={categorias.length > 0 ? "Selecione" : "Nenhuma categoria disponível"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIES.map((c) => (
-                      <SelectItem key={c.value} value={c.value}>
-                        {c.label}
+                    {categorias.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.icon ? `${c.icon} ` : ""}
+                        {c.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -237,11 +288,34 @@ export default function NovaDemandaPublica() {
                   rows={5}
                 />
               </div>
-              {/* Anexo fica para uma segunda iteração: reaproveitar o upload
-                  de TicketAttachments.tsx exige o ticket já existir, então
-                  aqui o caminho mais simples é permitir anexar depois de
-                  criado, a partir do link de acompanhamento, ou pelo painel
-                  interno na triagem. */}
+              <div className="space-y-2">
+                <Label htmlFor="anexo">Anexo (opcional)</Label>
+                {attachmentFile ? (
+                  <div className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                    <span className="flex items-center gap-2 truncate">
+                      <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate">{attachmentFile.name}</span>
+                      <span className="shrink-0 text-muted-foreground">
+                        ({(attachmentFile.size / 1024).toFixed(0)} KB)
+                      </span>
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 shrink-0"
+                      onClick={() => setAttachmentFile(null)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Input id="anexo" type="file" onChange={handleFileChange} />
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Até 5MB. Pode anexar mais arquivos depois, pelo link de acompanhamento.
+                </p>
+              </div>
             </>
           )}
 
@@ -258,7 +332,7 @@ export default function NovaDemandaPublica() {
               </p>
               <p>
                 <span className="text-muted-foreground">Categoria:</span>{" "}
-                {CATEGORIES.find((c) => c.value === category)?.label}
+                {categorias.find((c) => c.id === categoryId)?.name || "(sem categoria)"}
               </p>
               <p>
                 <span className="text-muted-foreground">Prioridade:</span>{" "}
@@ -270,6 +344,11 @@ export default function NovaDemandaPublica() {
               <p className="whitespace-pre-wrap">
                 <span className="text-muted-foreground">Descrição:</span> {description}
               </p>
+              {attachmentFile && (
+                <p>
+                  <span className="text-muted-foreground">Anexo:</span> {attachmentFile.name}
+                </p>
+              )}
             </div>
           )}
 
