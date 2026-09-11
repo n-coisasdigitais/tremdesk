@@ -1,13 +1,15 @@
 // Edge Function: demanda-publica
-// Recebe as duas ações do formulário público (/nova-demanda):
-//   - action "resolver_empresa": dado um slug, devolve so o nome da empresa
-//     (nunca a lista completa, evita expor a carteira de clientes).
-//   - action "criar": recebe os dados do formulário, valida, gera protocolo
-//     e token, insere o ticket e dispara o e-mail de confirmação
-//     reaproveitando a função "send-email" já existente.
+// Recebe as duas acoes do formulario publico (/nova-demanda):
+//   - action "resolver_empresa": dado um slug, devolve o nome da empresa
+//     (nunca a lista completa, evita expor a carteira de clientes) e a
+//     lista de categorias ativas cadastradas em Admin > Categorias.
+//   - action "criar": recebe os dados do formulario, valida, gera protocolo
+//     e token, insere o ticket, associa a categoria escolhida, sobe o anexo
+//     (se houver) e dispara o e-mail de confirmacao reaproveitando a funcao
+//     "send-email" ja existente.
 //
-// Segue o mesmo padrão das funções existentes (send-email, google-drive-folders):
-// service role key, sem exigir Authorization do chamador (rota pública).
+// Segue o mesmo padrao das funcoes existentes (send-email, google-drive-folders):
+// service role key, sem exigir Authorization do chamador (rota publica).
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
@@ -17,9 +19,22 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Limite de tamanho do anexo (em base64). ~7.000.000 caracteres equivale a
+// aproximadamente 5MB de arquivo decodificado. Edge Functions do Supabase
+// tem limite de tamanho de payload; manter uma margem de seguranca evita
+// erro de timeout/memoria numa funcao que roda em Deno, nao num servidor
+// dedicado.
+const MAX_ATTACHMENT_BASE64_LENGTH = 7_000_000;
+
 interface ResolverEmpresaBody {
   action: "resolver_empresa";
   slug: string;
+}
+
+interface AttachmentPayload {
+  file_name: string;
+  file_type: string;
+  file_base64: string;
 }
 
 interface CriarDemandaBody {
@@ -27,10 +42,11 @@ interface CriarDemandaBody {
   slug: string;
   solicitante_nome: string;
   solicitante_email: string;
-  category: string; // um dos valores do enum ticket_category
+  category_id?: string; // id de ticket_categories (Admin > Categorias)
   priority?: "baixa" | "media" | "alta" | "urgente";
   title: string;
   description: string;
+  attachment?: AttachmentPayload;
 }
 
 type RequestBody = ResolverEmpresaBody | CriarDemandaBody;
@@ -48,12 +64,13 @@ const handler = async (req: Request): Promise<Response> => {
     const body: RequestBody = await req.json();
 
     // ---------------------------------------------------------------
-    // Ação 1: resolver o slug da URL para o nome da empresa a exibir
+    // Acao 1: resolver o slug da URL para o nome da empresa a exibir,
+    // e devolver junto a lista de categorias ativas (Admin > Categorias).
     // ---------------------------------------------------------------
     if (body.action === "resolver_empresa") {
       const { slug } = body;
       if (!slug) {
-        return json({ error: "slug é obrigatório" }, 400);
+        return json({ error: "slug e obrigatorio" }, 400);
       }
 
       const { data: company, error } = await supabase
@@ -68,21 +85,41 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       if (!company) {
-        return json({ error: "Link inválido ou empresa não encontrada" }, 404);
+        return json({ error: "Link invalido ou empresa nao encontrada" }, 404);
       }
 
       // So o necessario para exibir no formulario, nunca a lista inteira.
-      return json({ company_id: company.id, company_name: company.name });
+      const { data: categories, error: catError } = await supabase
+        .from("ticket_categories")
+        .select("id, name, icon, color")
+        .eq("active", true)
+        .order("name");
+
+      if (catError) {
+        // Nao falha a resolucao da empresa por causa disso; o formulario
+        // simplesmente mostra a etapa de categoria vazia.
+        console.error("Erro ao buscar categorias:", catError);
+      }
+
+      return json({
+        company_id: company.id,
+        company_name: company.name,
+        categories: categories || [],
+      });
     }
 
     // ---------------------------------------------------------------
-    // Ação 2: criar a demanda
+    // Acao 2: criar a demanda
     // ---------------------------------------------------------------
     if (body.action === "criar") {
-      const { slug, solicitante_nome, solicitante_email, category, priority, title, description } = body;
+      const { slug, solicitante_nome, solicitante_email, category_id, priority, title, description, attachment } = body;
 
-      if (!slug || !solicitante_nome || !solicitante_email || !category || !title || !description) {
-        return json({ error: "Campos obrigatórios faltando" }, 400);
+      if (!slug || !solicitante_nome || !solicitante_email || !title || !description) {
+        return json({ error: "Campos obrigatorios faltando" }, 400);
+      }
+
+      if (attachment?.file_base64 && attachment.file_base64.length > MAX_ATTACHMENT_BASE64_LENGTH) {
+        return json({ error: "Arquivo muito grande (maximo 5MB)" }, 400);
       }
 
       const { data: company, error: companyError } = await supabase
@@ -92,11 +129,11 @@ const handler = async (req: Request): Promise<Response> => {
         .maybeSingle();
 
       if (companyError || !company) {
-        console.error("Empresa não encontrada para slug:", slug, companyError);
-        return json({ error: "Link inválido ou empresa não encontrada" }, 404);
+        console.error("Empresa nao encontrada para slug:", slug, companyError);
+        return json({ error: "Link invalido ou empresa nao encontrada" }, 404);
       }
 
-      // Gera o protocolo (N-2026-0001, ...) via função do banco.
+      // Gera o protocolo (N-2026-0001, ...) via funcao do banco.
       const { data: protocoloData, error: protocoloError } = await supabase.rpc("generate_protocolo");
       if (protocoloError) {
         console.error("Erro ao gerar protocolo:", protocoloError);
@@ -118,6 +155,13 @@ const handler = async (req: Request): Promise<Response> => {
         ],
       };
 
+      // "category" (enum legado do banco) continua NOT NULL na tabela
+      // tickets por compatibilidade com o restante do sistema (Kanban,
+      // NewTicketModal), mas deixou de ser a categorizacao "de verdade":
+      // quem categoriza mesmo agora e ticket_categories, gerenciada em
+      // Admin > Categorias e associada logo abaixo via
+      // ticket_category_assignments. "outro" aqui e so um valor valido
+      // de preenchimento, nunca aparece pro usuario.
       const { data: ticket, error: insertError } = await supabase
         .from("tickets")
         .insert([
@@ -125,7 +169,7 @@ const handler = async (req: Request): Promise<Response> => {
             company_id: company.id,
             title,
             description_json,
-            category,
+            category: "outro",
             priority: priority || "media",
             status: "novo",
             origem: "formulario",
@@ -141,6 +185,54 @@ const handler = async (req: Request): Promise<Response> => {
       if (insertError) {
         console.error("Erro ao criar ticket:", insertError);
         return json({ error: "Erro ao registrar demanda", details: insertError.message }, 500);
+      }
+
+      // Associa a categoria escolhida (Admin > Categorias) ao ticket recem-
+      // criado. Roda com service role, entao nao esbarra na RLS de
+      // ticket_category_assignments (que normalmente exige admin/team_member).
+      if (category_id) {
+        const { error: catAssignError } = await supabase
+          .from("ticket_category_assignments")
+          .insert([{ ticket_id: ticket.id, category_id }]);
+
+        if (catAssignError) {
+          // Nao falha a criacao da demanda por causa disso; a demanda fica
+          // sem categoria visivel, mas registrada e visivel no Kanban.
+          console.error("Erro ao associar categoria:", catAssignError);
+        }
+      }
+
+      // Anexo (opcional). Sobe direto pro bucket "attachments" do Supabase
+      // Storage com service role (mesmo bucket usado por TicketAttachments.tsx
+      // no painel interno) e registra a linha em ticket_attachments.
+      if (attachment?.file_base64) {
+        try {
+          const fileExt = attachment.file_name.split(".").pop() || "bin";
+          const storagePath = `${ticket.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+          const bytes = base64ToUint8Array(attachment.file_base64);
+
+          const { error: uploadError } = await supabase.storage.from("attachments").upload(storagePath, bytes, {
+            contentType: attachment.file_type || "application/octet-stream",
+          });
+
+          if (uploadError) throw uploadError;
+
+          const { error: attError } = await supabase.from("ticket_attachments").insert([
+            {
+              ticket_id: ticket.id,
+              file_name: attachment.file_name,
+              file_type: attachment.file_type,
+              file_url: storagePath,
+              uploaded_by: null,
+            },
+          ]);
+
+          if (attError) throw attError;
+        } catch (attErr: any) {
+          // Nao falha a criacao da demanda por causa do anexo; loga e segue
+          // (mesmo padrao ja usado pro envio de e-mail, abaixo).
+          console.error("Erro ao anexar arquivo do formulario publico:", attErr);
+        }
       }
 
       const trackingUrl = `${req.headers.get("origin") || ""}/acompanhar/${ticket.token_acompanhamento}`;
@@ -164,7 +256,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (emailError) {
         // Nao falha a criacao da demanda por causa do e-mail; loga e segue.
-        console.error("Falha ao enviar e-mail de confirmação:", emailError);
+        console.error("Falha ao enviar e-mail de confirmacao:", emailError);
       }
 
       return json({
@@ -173,12 +265,21 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    return json({ error: "Ação inválida" }, 400);
+    return json({ error: "Acao invalida" }, 400);
   } catch (error: any) {
     console.error("Erro em demanda-publica:", error);
     return json({ error: error.message }, 500);
   }
 };
+
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -203,8 +304,8 @@ serve(handler);
  *            <div class="container">
  *              <div class="header"><h1>📋 Demanda registrada</h1></div>
  *              <div class="content">
- *                <p>Olá <strong>${data?.user_name}</strong>,</p>
- *                <p>Recebemos sua solicitação para <span class="highlight">${data?.company_name}</span>:</p>
+ *                <p>Ola <strong>${data?.user_name}</strong>,</p>
+ *                <p>Recebemos sua solicitacao para <span class="highlight">${data?.company_name}</span>:</p>
  *                <div class="info-box"><strong>${data?.ticket_title}</strong></div>
  *                <p>Protocolo: <strong>${data?.message}</strong></p>
  *                ${data?.action_url ? `<a class="button" href="${data.action_url}">Acompanhar andamento</a>` : ""}
