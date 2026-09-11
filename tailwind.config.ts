@@ -13,6 +13,11 @@ export default {
       },
     },
     extend: {
+      // NOVO — Inter como fonte base (mesma família usada pelo Notion).
+      // Importada em src/index.css: @import url('...family=Inter...').
+      fontFamily: {
+        sans: ["Inter", "system-ui", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -57,7 +62,6 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        // N Coisas Digitais Brand Colors
         ncoisas: {
           lime: "hsl(var(--ncoisas-lime))",
           dark: "hsl(var(--ncoisas-dark))",
@@ -71,20 +75,12 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       animation: {
