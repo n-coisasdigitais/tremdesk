@@ -1,16 +1,27 @@
-export type AppRole = 'super_admin' | 'admin' | 'team_member' | 'client_admin' | 'client_user';
+export type AppRole = "super_admin" | "admin" | "team_member" | "client_admin" | "client_user";
 
-export type TicketStatus = 'novo' | 'em_andamento' | 'aguardando_aprovacao' | 'aprovado' | 'concluido' | 'cancelado' | 'arquivado';
+export type TicketStatus =
+  | "novo"
+  | "em_andamento"
+  | "aguardando_aprovacao"
+  | "aprovado"
+  | "concluido"
+  | "cancelado"
+  | "arquivado";
 
-export type TicketPriority = 'baixa' | 'media' | 'alta' | 'urgente';
+export type TicketPriority = "baixa" | "media" | "alta" | "urgente";
 
-export type TicketCategory = 'meta_ads' | 'google_ads' | 'linkedin_ads' | 'arte' | 'relatorio' | 'outro';
+export type TicketCategory = "meta_ads" | "google_ads" | "linkedin_ads" | "arte" | "relatorio" | "outro";
 
-export type TicketLinkType = 'related' | 'parent' | 'blocks' | 'blocked_by';
+export type TicketLinkType = "related" | "parent" | "blocks" | "blocked_by";
 
-export type ApprovalItemStatus = 'pending' | 'approved' | 'changes_requested';
+export type ApprovalItemStatus = "pending" | "approved" | "changes_requested";
 
-export type ApprovalIssueStatus = 'open' | 'resolved';
+export type ApprovalIssueStatus = "open" | "resolved";
+
+// NOVO — origem da demanda: criada internamente (Kanban/NewTicketModal) ou
+// pelo formulário público sem login (nova-demanda?e=slug).
+export type TicketOrigem = "manual" | "formulario";
 
 export interface Profile {
   id: string;
@@ -36,6 +47,9 @@ export interface Company {
   leads_system_url?: string;
   assas_portal_url?: string;
   google_drive_folder_id?: string;
+  // NOVO — slug único usado no link público do formulário de demanda:
+  // atendimento.ncoisas.digital/nova-demanda?e={slug}
+  slug?: string;
   created_at: string;
   updated_at: string;
 }
@@ -62,6 +76,12 @@ export interface Ticket {
   daylog_id?: string;
   requires_approval?: boolean;
   approval_assignee?: string;
+  // NOVO — canal de demanda pública (ver migration 2026XXXXXX_demanda_publica.sql)
+  origem?: TicketOrigem;
+  protocolo?: string;
+  solicitante_nome?: string;
+  solicitante_email?: string;
+  token_acompanhamento?: string;
   created_at: string;
   updated_at: string;
   company?: Company;
@@ -128,7 +148,7 @@ export interface Approval {
   id: string;
   ticket_id: string;
   approved_by?: string;
-  status: 'pending' | 'approved' | 'changes_requested';
+  status: "pending" | "approved" | "changes_requested";
   feedback_json?: any;
   created_at: string;
 }
