@@ -11,7 +11,14 @@ interface EmailRequest {
   to?: string | string[];
   recipient_user_ids?: string[];
   subject?: string;
-  template: "ticket_created" | "ticket_updated" | "ticket_approved" | "ticket_rejected" | "mention" | "custom";
+  template:
+    | "ticket_created"
+    | "ticket_updated"
+    | "ticket_approved"
+    | "ticket_rejected"
+    | "mention"
+    | "custom"
+    | "demanda_publica_criada";
   data?: {
     ticket_id?: string;
     ticket_title?: string;
@@ -164,8 +171,39 @@ function getEmailHtml(template: string, data: EmailRequest["data"]): string {
         </html>
       `;
 
+    // NOVO — confirmação de demanda aberta pelo formulário público (/nova-demanda),
+    // usa data.message para o protocolo e data.action_url para o link de acompanhamento.
+    case "demanda_publica_criada":
+      return `
+        <!DOCTYPE html>
+        <html>
+        <head>${baseStyles}</head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>📋 Demanda registrada</h1>
+            </div>
+            <div class="content">
+              <p>Olá <strong>${data?.user_name || "Usuário"}</strong>,</p>
+              <p>Recebemos sua solicitação para <span class="highlight">${data?.company_name || "sua empresa"}</span>:</p>
+              <div class="info-box">
+                <strong>${data?.ticket_title || "Demanda"}</strong>
+              </div>
+              <p>Protocolo: <strong>${data?.message || ""}</strong></p>
+              ${data?.action_url ? `<a href="${data.action_url}" class="button">Acompanhar andamento</a>` : ""}
+            </div>
+            <div class="footer">
+              <p>N Coisas Digitais - Este é um email automático.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
     case "custom":
-      return data?.html || `
+      return (
+        data?.html ||
+        `
         <!DOCTYPE html>
         <html>
         <head>${baseStyles}</head>
@@ -183,7 +221,8 @@ function getEmailHtml(template: string, data: EmailRequest["data"]): string {
           </div>
         </body>
         </html>
-      `;
+      `
+      );
 
     default:
       return `<p>${data?.message || "Mensagem não especificada."}</p>`;
@@ -202,6 +241,9 @@ function getSubject(template: string, data: EmailRequest["data"]): string {
       return `🔄 Alterações: ${data?.ticket_title || "Alterações solicitadas"}`;
     case "mention":
       return `📣 Você foi mencionado: ${data?.ticket_title || "Nova menção"}`;
+    // NOVO
+    case "demanda_publica_criada":
+      return `Demanda registrada — Protocolo ${data?.message || ""}`;
     default:
       return "Sistema de Demandas";
   }
@@ -230,17 +272,17 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Failed to fetch settings");
     }
 
-    const settingsMap = Object.fromEntries(settings?.map(s => [s.key, s.value]) || []);
+    const settingsMap = Object.fromEntries(settings?.map((s) => [s.key, s.value]) || []);
     const resendApiKey = settingsMap["resend_api_key"];
     const fromEmail = settingsMap["resend_from_email"] || "onboarding@resend.dev";
     const fromName = settingsMap["resend_from_name"] || "Sistema de Demandas";
 
     if (!resendApiKey) {
       console.error("Resend API key not configured");
-      return new Response(
-        JSON.stringify({ error: "Resend não configurado. Configure a API Key nas configurações." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Resend não configurado. Configure a API Key nas configurações." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const resend = new Resend(resendApiKey);
@@ -252,25 +294,27 @@ const handler = async (req: Request): Promise<Response> => {
     if (body.recipient_user_ids && body.recipient_user_ids.length > 0) {
       // Fetch emails from auth.users using service role
       const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
-      
+
       if (authError) {
         console.error("Error fetching users:", authError);
       } else if (authData?.users) {
         toEmails = authData.users
-          .filter(u => body.recipient_user_ids!.includes(u.id) && u.email)
-          .map(u => u.email!)
+          .filter((u) => body.recipient_user_ids!.includes(u.id) && u.email)
+          .map((u) => u.email!)
           .filter(Boolean);
       }
     } else if (body.to) {
-      toEmails = Array.isArray(body.to) ? body.to.filter(Boolean) as string[] : [body.to].filter(Boolean) as string[];
+      toEmails = Array.isArray(body.to)
+        ? (body.to.filter(Boolean) as string[])
+        : ([body.to].filter(Boolean) as string[]);
     }
 
     if (toEmails.length === 0) {
       console.log("No valid recipients found");
-      return new Response(
-        JSON.stringify({ warning: "No valid recipients found", skipped: true }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ warning: "No valid recipients found", skipped: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     console.log("Sending email:", {
@@ -302,13 +346,10 @@ const handler = async (req: Request): Promise<Response> => {
     });
   } catch (error: any) {
     console.error("Error in send-email function:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 };
 
