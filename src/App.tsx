@@ -21,6 +21,9 @@ import DayLogTags from "./pages/admin/DayLogTags";
 import SavedContacts from "./pages/admin/SavedContacts";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+// NOVO — formulário público de abertura de demanda e página de acompanhamento
+import NovaDemandaPublica from "./pages/NovaDemandaPublica";
+import AcompanharDemanda from "./pages/AcompanharDemanda";
 
 const queryClient = new QueryClient();
 
@@ -28,7 +31,7 @@ const queryClient = new QueryClient();
 const RootRedirect = () => {
   // Check if URL hash contains recovery tokens
   const hash = window.location.hash;
-  if (hash && hash.includes('type=recovery') && hash.includes('access_token')) {
+  if (hash && hash.includes("type=recovery") && hash.includes("access_token")) {
     // Redirect to reset password page preserving the hash
     return <Navigate to={`/auth/reset-password${hash}`} replace />;
   }
@@ -45,20 +48,121 @@ const App = () => (
           <Route path="/" element={<RootRedirect />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/auth/reset-password" element={<ResetPassword />} />
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/kanban" element={<ProtectedRoute><Kanban /></ProtectedRoute>} />
-          <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-          <Route path="/daylog" element={<ProtectedRoute><DayLog /></ProtectedRoute>} />
-          <Route path="/daylog/new" element={<ProtectedRoute><DayLogNew /></ProtectedRoute>} />
-          <Route path="/daylog/:id" element={<ProtectedRoute><DayLogDetail /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-          <Route path="/admin/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
-          <Route path="/admin/companies" element={<ProtectedRoute><Companies /></ProtectedRoute>} />
-          <Route path="/admin/teams" element={<ProtectedRoute><Teams /></ProtectedRoute>} />
-          <Route path="/admin/announcements" element={<ProtectedRoute><Announcements /></ProtectedRoute>} />
-          <Route path="/admin/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
-          <Route path="/admin/daylog-tags" element={<ProtectedRoute><DayLogTags /></ProtectedRoute>} />
-          <Route path="/admin/contacts" element={<ProtectedRoute><SavedContacts /></ProtectedRoute>} />
+          {/* NOVO — rotas públicas, fora do ProtectedRoute: não exigem login */}
+          <Route path="/nova-demanda" element={<NovaDemandaPublica />} />
+          <Route path="/acompanhar/:token" element={<AcompanharDemanda />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/kanban"
+            element={
+              <ProtectedRoute>
+                <Kanban />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute>
+                <Reports />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/daylog"
+            element={
+              <ProtectedRoute>
+                <DayLog />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/daylog/new"
+            element={
+              <ProtectedRoute>
+                <DayLogNew />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/daylog/:id"
+            element={
+              <ProtectedRoute>
+                <DayLogDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute>
+                <Users />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/companies"
+            element={
+              <ProtectedRoute>
+                <Companies />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/teams"
+            element={
+              <ProtectedRoute>
+                <Teams />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/announcements"
+            element={
+              <ProtectedRoute>
+                <Announcements />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/categories"
+            element={
+              <ProtectedRoute>
+                <Categories />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/daylog-tags"
+            element={
+              <ProtectedRoute>
+                <DayLogTags />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/contacts"
+            element={
+              <ProtectedRoute>
+                <SavedContacts />
+              </ProtectedRoute>
+            }
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
