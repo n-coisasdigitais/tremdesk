@@ -63,6 +63,15 @@ export default function AcompanharDemanda() {
   const [loading, setLoading] = useState(true);
   const [ticket, setTicket] = useState<TicketPublico | null>(null);
   const [naoEncontrado, setNaoEncontrado] = useState(false);
+  const [historico, setHistorico] = useState<HistoricoItem[]>([]);
+  const [novaMensagem, setNovaMensagem] = useState("");
+  const [enviando, setEnviando] = useState(false);
+
+  const carregarHistorico = useCallback(async () => {
+    if (!token) return;
+    const { data, error } = await supabase.rpc("get_ticket_history_by_token", { p_token: token });
+    if (!error) setHistorico((data || []) as HistoricoItem[]);
+  }, [token]);
 
   useEffect(() => {
     const fetchTicket = async () => {
@@ -78,11 +87,32 @@ export default function AcompanharDemanda() {
         setNaoEncontrado(true);
       } else {
         setTicket(data[0] as TicketPublico);
+        await carregarHistorico();
       }
       setLoading(false);
     };
     fetchTicket();
-  }, [token]);
+  }, [token, carregarHistorico]);
+
+  const enviarMensagem = async () => {
+    if (!token || !novaMensagem.trim()) return;
+    setEnviando(true);
+    const { error } = await supabase.rpc("add_ticket_comment_by_token", {
+      p_token: token,
+      p_content: novaMensagem.trim(),
+    });
+    setEnviando(false);
+
+    if (error) {
+      toast.error("Não foi possível enviar sua mensagem. Tente novamente.");
+      return;
+    }
+
+    setNovaMensagem("");
+    toast.success("Mensagem enviada!");
+    await carregarHistorico();
+  };
+
 
   if (loading) {
     return (
