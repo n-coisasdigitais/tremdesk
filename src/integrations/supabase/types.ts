@@ -1392,6 +1392,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_ticket_comment_by_token: {
+        Args: { p_content: string; p_token: string }
+        Returns: string
+      }
       admin_can_access_company: {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
@@ -1409,6 +1413,16 @@ export type Database = {
           status: string
           title: string
           updated_at: string
+        }[]
+      }
+      get_ticket_history_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          author_name: string
+          content_json: Json
+          created_at: string
+          id: string
+          is_client: boolean
         }[]
       }
       has_role: {
