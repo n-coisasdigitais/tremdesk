@@ -1404,6 +1404,7 @@ export type Database = {
           company_name: string
           completed_at: string
           created_at: string
+          due_date: string
           protocolo: string
           status: string
           title: string
