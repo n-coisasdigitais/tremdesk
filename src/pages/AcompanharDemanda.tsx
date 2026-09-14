@@ -1,17 +1,21 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Send } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
+import { toast } from "sonner";
 
 // Mesmos rótulos usados no Kanban interno (Kanban.tsx / statusConfig).
 const statusLabels: Record<string, string> = {
   novo: "Novo",
   em_andamento: "Em Andamento",
+  bloqueado: "Bloqueado",
   aguardando_aprovacao: "Aguardando Aprovação",
   aprovado: "Aprovado",
   concluido: "Concluído",
@@ -29,6 +33,29 @@ interface TicketPublico {
   updated_at: string;
   due_date: string | null;
   completed_at: string | null;
+}
+
+interface HistoricoItem {
+  id: string;
+  author_name: string;
+  is_client: boolean;
+  content_json: unknown;
+  created_at: string;
+}
+
+// Os comentários são salvos no formato do editor (TipTap). Aqui só
+// precisamos do texto puro para exibir na linha do tempo pública.
+function extrairTexto(content: unknown): string {
+  if (!content) return "";
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) return content.map(extrairTexto).join("");
+  if (typeof content === "object") {
+    const node = content as { type?: string; text?: string; content?: unknown };
+    if (node.text) return node.text;
+    const inner = extrairTexto(node.content);
+    return node.type === "paragraph" ? `${inner}\n` : inner;
+  }
+  return "";
 }
 
 export default function AcompanharDemanda() {
