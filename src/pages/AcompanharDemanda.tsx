@@ -27,6 +27,7 @@ interface TicketPublico {
   company_name: string;
   created_at: string;
   updated_at: string;
+  due_date: string | null;
   completed_at: string | null;
 }
 
@@ -96,9 +97,25 @@ export default function AcompanharDemanda() {
             <p>
               Última atualização em {format(new Date(ticket.updated_at), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
             </p>
-            {ticket.completed_at && (
-              <p>Concluída em {format(new Date(ticket.completed_at), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}</p>
-            )}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-md border p-3">
+              <p className="text-xs text-muted-foreground">Previsão de conclusão</p>
+              <p className="text-sm font-medium">
+                {ticket.due_date
+                  ? format(new Date(`${ticket.due_date}T00:00:00`), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+                  : "A definir"}
+              </p>
+            </div>
+            <div className="rounded-md border p-3">
+              <p className="text-xs text-muted-foreground">Conclusão real</p>
+              <p className="text-sm font-medium">
+                {ticket.completed_at
+                  ? format(new Date(ticket.completed_at), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })
+                  : "Em andamento"}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

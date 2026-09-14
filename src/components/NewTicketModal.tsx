@@ -16,20 +16,13 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
+import { TicketCategorySelect } from './TicketCategorySelect';
+import { useCategories } from '@/hooks/useCategories';
 
 interface NewTicketModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-const categories: { value: TicketCategory; label: string }[] = [
-  { value: 'meta_ads', label: 'Meta Ads' },
-  { value: 'google_ads', label: 'Google Ads' },
-  { value: 'linkedin_ads', label: 'LinkedIn Ads' },
-  { value: 'arte', label: 'Arte/Criação' },
-  { value: 'relatorio', label: 'Relatório' },
-  { value: 'outro', label: 'Outro' },
-];
 
 const priorities: { value: TicketPriority; label: string; color: string }[] = [
   { value: 'baixa', label: 'Baixa', color: 'bg-blue-500' },
@@ -46,6 +39,7 @@ interface TeamMember {
 
 export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
   const { createTicket } = useTickets();
+  const { assignCategories } = useCategories();
   const { isAdmin, isTeamMember, roles } = useAuth();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -53,7 +47,10 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState<any>(null);
-  const [category, setCategory] = useState<TicketCategory>('outro');
+  // Categorias reais vêm de Admin > Categorias (ticket_categories). O campo
+  // legado "category" (enum) continua sendo preenchido com 'outro' só para
+  // satisfazer a coluna NOT NULL da tabela.
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [priority, setPriority] = useState<TicketPriority>('media');
   const [companyId, setCompanyId] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
@@ -94,25 +91,29 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !companyId || !category) return;
+    if (!title || !companyId) return;
 
     setLoading(true);
     try {
-      await createTicket({
+      const { data } = await createTicket({
         title,
         description_json: description,
-        category,
+        category: 'outro' as TicketCategory,
         priority,
         company_id: companyId,
         assigned_to: assignedTo || null,
         due_date: dueDate ? format(dueDate, 'yyyy-MM-dd') : null,
         requires_approval: requiresApproval,
       });
-      
+
+      if (data?.id && selectedCategories.length > 0) {
+        await assignCategories(data.id, selectedCategories);
+      }
+
       // Reset form
       setTitle('');
       setDescription(null);
-      setCategory('outro');
+      setSelectedCategories([]);
       setPriority('media');
       setAssignedTo('');
       setDueDate(undefined);
@@ -160,19 +161,11 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label>Categoria *</Label>
-              <Select value={category} onValueChange={(v) => setCategory(v as TicketCategory)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Categorias</Label>
+              <TicketCategorySelect
+                selectedCategories={selectedCategories}
+                onCategoriesChange={setSelectedCategories}
+              />
             </div>
           </div>
 
@@ -216,7 +209,7 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label>Prazo</Label>
+              <Label>Previsão de conclusão</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button

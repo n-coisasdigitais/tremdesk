@@ -31,6 +31,9 @@ import {
   Link as LinkIcon,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon, CheckCircle2 } from "lucide-react";
 
 // NOVO — base do link público de acompanhamento (mesma lógica usada no
 // formulário de nova demanda). Todo ticket tem token_acompanhamento
@@ -408,6 +411,25 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
     }
   };
 
+  // Previsão de conclusão (due_date). A conclusão real (completed_at) é
+  // gravada automaticamente quando o status vira "concluido".
+  const handleDueDateChange = async (date: Date | undefined) => {
+    if (!ticket) return;
+    setLoading(true);
+    try {
+      const novaData = date ? format(date, "yyyy-MM-dd") : null;
+      const { error } = await supabase.from("tickets").update({ due_date: novaData }).eq("id", ticket.id);
+      if (error) throw error;
+      toast({ title: novaData ? "Previsão de conclusão atualizada!" : "Previsão de conclusão removida" });
+      await fetchData();
+      onUpdate();
+    } catch (error: any) {
+      toast({ title: "Erro ao atualizar previsão", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAssigneeChange = async (assigneeId: string) => {
     if (!ticket || !user) return;
 
@@ -598,10 +620,53 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
                 </Badge>
               )}
 
-              {ticket.due_date && (
+              {/* Previsão de conclusão: editável por equipe/admin */}
+              {canChangeStatus ? (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-7">
+                      <CalendarIcon className="h-3 w-3 mr-1" />
+                      {ticket.due_date
+                        ? `Previsão: ${format(new Date(`${ticket.due_date}T00:00:00`), "dd/MM/yyyy", { locale: ptBR })}`
+                        : "Definir previsão"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={ticket.due_date ? new Date(`${ticket.due_date}T00:00:00`) : undefined}
+                      onSelect={handleDueDateChange}
+                      locale={ptBR}
+                      initialFocus
+                    />
+                    {ticket.due_date && (
+                      <div className="border-t p-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => handleDueDateChange(undefined)}
+                        >
+                          Remover previsão
+                        </Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                ticket.due_date && (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Previsão: {format(new Date(`${ticket.due_date}T00:00:00`), "dd/MM/yyyy", { locale: ptBR })}
+                  </Badge>
+                )
+              )}
+
+              {/* Conclusão real */}
+              {ticket.completed_at && (
                 <Badge variant="outline" className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {format(new Date(ticket.due_date), "dd/MM/yyyy", { locale: ptBR })}
+                  <CheckCircle2 className="h-3 w-3" />
+                  Concluída em {format(new Date(ticket.completed_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                 </Badge>
               )}
             </div>
