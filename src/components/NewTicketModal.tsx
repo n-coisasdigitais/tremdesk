@@ -209,7 +209,7 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label>Prazo</Label>
+              <Label>Previsão de conclusão</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
