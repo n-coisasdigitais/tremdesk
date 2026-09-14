@@ -1446,6 +1446,7 @@ export type Database = {
       ticket_status:
         | "novo"
         | "em_andamento"
+        | "bloqueado"
         | "aguardando_aprovacao"
         | "aprovado"
         | "concluido"
@@ -1597,6 +1598,7 @@ export const Constants = {
       ticket_status: [
         "novo",
         "em_andamento",
+        "bloqueado",
         "aguardando_aprovacao",
         "aprovado",
         "concluido",
