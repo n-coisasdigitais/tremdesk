@@ -620,10 +620,53 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
                 </Badge>
               )}
 
-              {ticket.due_date && (
+              {/* Previsão de conclusão: editável por equipe/admin */}
+              {canChangeStatus ? (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-7">
+                      <CalendarIcon className="h-3 w-3 mr-1" />
+                      {ticket.due_date
+                        ? `Previsão: ${format(new Date(`${ticket.due_date}T00:00:00`), "dd/MM/yyyy", { locale: ptBR })}`
+                        : "Definir previsão"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={ticket.due_date ? new Date(`${ticket.due_date}T00:00:00`) : undefined}
+                      onSelect={handleDueDateChange}
+                      locale={ptBR}
+                      initialFocus
+                    />
+                    {ticket.due_date && (
+                      <div className="border-t p-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => handleDueDateChange(undefined)}
+                        >
+                          Remover previsão
+                        </Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                ticket.due_date && (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Previsão: {format(new Date(`${ticket.due_date}T00:00:00`), "dd/MM/yyyy", { locale: ptBR })}
+                  </Badge>
+                )
+              )}
+
+              {/* Conclusão real */}
+              {ticket.completed_at && (
                 <Badge variant="outline" className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {format(new Date(ticket.due_date), "dd/MM/yyyy", { locale: ptBR })}
+                  <CheckCircle2 className="h-3 w-3" />
+                  Concluída em {format(new Date(ticket.completed_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                 </Badge>
               )}
             </div>
