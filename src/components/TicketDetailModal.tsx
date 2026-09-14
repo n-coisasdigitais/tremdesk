@@ -31,6 +31,9 @@ import {
   Link as LinkIcon,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon, CheckCircle2 } from "lucide-react";
 
 // NOVO — base do link público de acompanhamento (mesma lógica usada no
 // formulário de nova demanda). Todo ticket tem token_acompanhamento
@@ -403,6 +406,25 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
       onUpdate();
     } catch (error: any) {
       toast({ title: "Erro ao atualizar status", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Previsão de conclusão (due_date). A conclusão real (completed_at) é
+  // gravada automaticamente quando o status vira "concluido".
+  const handleDueDateChange = async (date: Date | undefined) => {
+    if (!ticket) return;
+    setLoading(true);
+    try {
+      const novaData = date ? format(date, "yyyy-MM-dd") : null;
+      const { error } = await supabase.from("tickets").update({ due_date: novaData }).eq("id", ticket.id);
+      if (error) throw error;
+      toast({ title: novaData ? "Previsão de conclusão atualizada!" : "Previsão de conclusão removida" });
+      await fetchData();
+      onUpdate();
+    } catch (error: any) {
+      toast({ title: "Erro ao atualizar previsão", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
