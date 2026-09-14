@@ -16,20 +16,13 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
+import { TicketCategorySelect } from './TicketCategorySelect';
+import { useCategories } from '@/hooks/useCategories';
 
 interface NewTicketModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-const categories: { value: TicketCategory; label: string }[] = [
-  { value: 'meta_ads', label: 'Meta Ads' },
-  { value: 'google_ads', label: 'Google Ads' },
-  { value: 'linkedin_ads', label: 'LinkedIn Ads' },
-  { value: 'arte', label: 'Arte/Criação' },
-  { value: 'relatorio', label: 'Relatório' },
-  { value: 'outro', label: 'Outro' },
-];
 
 const priorities: { value: TicketPriority; label: string; color: string }[] = [
   { value: 'baixa', label: 'Baixa', color: 'bg-blue-500' },
