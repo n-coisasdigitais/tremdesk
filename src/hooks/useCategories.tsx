@@ -175,7 +175,7 @@ export const useCategories = () => {
 
     // Subscribe to realtime changes
     const channel = supabase
-      .channel('ticket_categories_changes')
+      .channel(`ticket_categories_changes_${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'ticket_categories' },
