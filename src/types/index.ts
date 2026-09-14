@@ -3,6 +3,7 @@ export type AppRole = "super_admin" | "admin" | "team_member" | "client_admin" |
 export type TicketStatus =
   | "novo"
   | "em_andamento"
+  | "bloqueado"
   | "aguardando_aprovacao"
   | "aprovado"
   | "concluido"

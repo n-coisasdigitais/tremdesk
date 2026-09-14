@@ -50,6 +50,7 @@ interface TicketDetailModalProps {
 const statusConfig = {
   novo: { label: "Novo", color: "bg-blue-500" },
   em_andamento: { label: "Em Andamento", color: "bg-yellow-500" },
+  bloqueado: { label: "Bloqueado", color: "bg-rose-600" },
   aguardando_aprovacao: { label: "Aguardando Aprovação", color: "bg-orange-500" },
   aprovado: { label: "Aprovado", color: "bg-green-500" },
   concluido: { label: "Concluído", color: "bg-gray-500" },

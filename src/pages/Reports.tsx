@@ -45,6 +45,7 @@ const categoryLabels: Record<TicketCategory, string> = {
 const statusLabels: Record<TicketStatus, string> = {
   novo: 'Novo',
   em_andamento: 'Em Andamento',
+  bloqueado: 'Bloqueado',
   aguardando_aprovacao: 'Aguardando',
   aprovado: 'Aprovado',
   concluido: 'Concluído',

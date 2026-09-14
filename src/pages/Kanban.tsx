@@ -36,6 +36,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 const statusConfig: Record<TicketStatus, { label: string; color: string; bgColor: string }> = {
   novo: { label: "Novo", color: "bg-blue-500", bgColor: "bg-muted/40" },
   em_andamento: { label: "Em Andamento", color: "bg-yellow-500", bgColor: "bg-muted/40" },
+  bloqueado: { label: "Bloqueado", color: "bg-rose-600", bgColor: "bg-muted/40" },
   aguardando_aprovacao: { label: "Aguardando", color: "bg-orange-500", bgColor: "bg-muted/40" },
   aprovado: { label: "Aprovado", color: "bg-green-500", bgColor: "bg-muted/40" },
   concluido: { label: "Concluído", color: "bg-gray-500", bgColor: "bg-muted/40" },
@@ -284,7 +285,7 @@ export default function Kanban() {
 
   const columns: TicketStatus[] = showArchived
     ? ["arquivado"]
-    : ["novo", "em_andamento", "aguardando_aprovacao", "aprovado", "concluido"];
+    : ["novo", "em_andamento", "bloqueado", "aguardando_aprovacao", "aprovado", "concluido"];
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
