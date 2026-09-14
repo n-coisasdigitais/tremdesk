@@ -174,6 +174,44 @@ export default function AcompanharDemanda() {
               </p>
             </div>
           </div>
+
+          <div className="space-y-3 border-t pt-4">
+            <p className="text-sm font-semibold">Histórico</p>
+
+            {historico.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma mensagem ainda.</p>
+            ) : (
+              <div className="space-y-3">
+                {historico.map((item) => (
+                  <div key={item.id} className="rounded-md border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium">{item.author_name}</p>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(item.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </span>
+                    </div>
+                    <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
+                      {extrairTexto(item.content_json).trim()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Textarea
+                placeholder="Escreva uma mensagem para a equipe..."
+                value={novaMensagem}
+                onChange={(e) => setNovaMensagem(e.target.value)}
+                rows={3}
+                maxLength={5000}
+              />
+              <Button onClick={enviarMensagem} disabled={enviando || !novaMensagem.trim()} className="w-full sm:w-auto">
+                {enviando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                Enviar mensagem
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </CenteredShell>
