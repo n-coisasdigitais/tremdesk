@@ -161,19 +161,11 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label>Categoria *</Label>
-              <Select value={category} onValueChange={(v) => setCategory(v as TicketCategory)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Categorias</Label>
+              <TicketCategorySelect
+                selectedCategories={selectedCategories}
+                onCategoriesChange={setSelectedCategories}
+              />
             </div>
           </div>
 
