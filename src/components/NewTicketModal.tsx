@@ -57,6 +57,18 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
   const [assignedTo, setAssignedTo] = useState('');
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [requiresApproval, setRequiresApproval] = useState(false);
+  // Solicitante: pessoa que pediu a demanda. Recebe status/movimentações por
+  // e-mail, mesmo sem ter login. Se um dia criar conta com o mesmo e-mail,
+  // as demandas são vinculadas a ela automaticamente (trigger no banco).
+  const [solicitanteNome, setSolicitanteNome] = useState('');
+  const [solicitanteEmail, setSolicitanteEmail] = useState('');
+  const [saveContact, setSaveContact] = useState(false);
+  const { contacts, createContact } = useSavedContacts();
+
+  const handleContactPick = (email: string) => {
+    const contact = contacts.find((c) => c.email === email.toLowerCase().trim());
+    if (contact) setSolicitanteNome(contact.name);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
