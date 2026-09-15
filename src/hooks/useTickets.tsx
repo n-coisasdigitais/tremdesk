@@ -10,8 +10,14 @@ export const useTickets = () => {
   const [loading, setLoading] = useState(true);
   const { user, profile } = useAuth();
   const { toast } = useToast();
-  const { notifyTicketCreated, notifyTicketUpdated, notifyTicketApproved, notifyTicketRejected, notifyMention } =
-    useEmailNotifications();
+  const {
+    notifyTicketCreated,
+    notifyTicketUpdated,
+    notifyTicketApproved,
+    notifyTicketRejected,
+    notifyMention,
+    notifySolicitante,
+  } = useEmailNotifications();
 
   // Extract mentions from TipTap JSON content
   const extractMentions = (content: any): string[] => {
