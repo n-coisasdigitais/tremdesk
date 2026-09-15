@@ -212,6 +212,18 @@ export const useTickets = () => {
           console.log("Email notification skipped or failed:", err);
         });
 
+        // Avisa o solicitante cadastrado na abertura da demanda, com o link
+        // público de acompanhamento (não precisa de login).
+        if (data.solicitante_email) {
+          notifySolicitante(
+            data.solicitante_email,
+            data.title,
+            "Sua demanda foi registrada. Você receberá as atualizações por e-mail.",
+            data.solicitante_nome,
+            data.token_acompanhamento,
+          ).catch((err) => console.log("Email ao solicitante falhou:", err));
+        }
+
         // Notify assigned user if ticket was created with an assignee
         if (ticketData.assigned_to) {
           // Create in-app notification (even for self-assignment for consistency)
@@ -385,6 +397,28 @@ export const useTickets = () => {
       }
       if (ticket.assignee?.id && !userIds.includes(ticket.assignee.id)) {
         userIds.push(ticket.assignee.id);
+      }
+
+      const statusLabelsAll: Record<string, string> = {
+        novo: "Novo",
+        em_andamento: "Em Andamento",
+        bloqueado: "Bloqueado",
+        aguardando_aprovacao: "Aguardando Aprovação",
+        aprovado: "Aprovado",
+        concluido: "Concluído",
+        cancelado: "Cancelado",
+        arquivado: "Arquivado",
+      };
+
+      // Solicitante cadastrado recebe toda movimentação de status
+      if (ticket.solicitante_email) {
+        notifySolicitante(
+          ticket.solicitante_email,
+          ticket.title,
+          `Status alterado para: ${statusLabelsAll[newStatus] || newStatus}${feedback ? `<br><br>${feedback}` : ""}`,
+          ticket.solicitante_nome,
+          ticket.token_acompanhamento,
+        ).catch((err) => console.log("Email ao solicitante falhou:", err));
       }
 
       if (userIds.length === 0) return;
