@@ -116,6 +116,58 @@ export const useEmailNotifications = () => {
     });
   };
 
+  // Envia para endereços de e-mail diretos (solicitantes sem login no sistema)
+  const sendEmailToAddresses = async (
+    emails: string[],
+    template: EmailTemplate,
+    data?: EmailData,
+    subject?: string
+  ) => {
+    const to = emails.filter(Boolean);
+    if (to.length === 0) return { success: false };
+    try {
+      const { data: response, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to,
+          template,
+          subject,
+          data: {
+            ...data,
+            action_url: data?.action_url || `${window.location.origin}/kanban`,
+          },
+        },
+      });
+      if (error) {
+        console.error('Error sending email to addresses:', error);
+        return { success: false, error };
+      }
+      return { success: true, data: response };
+    } catch (err) {
+      console.error('Error invoking send-email function:', err);
+      return { success: false, error: err };
+    }
+  };
+
+  // Notifica o solicitante (pessoa cadastrada na abertura da demanda) com o
+  // link público de acompanhamento, sem exigir login.
+  const notifySolicitante = async (
+    email: string | null | undefined,
+    ticketTitle: string,
+    message: string,
+    solicitanteNome?: string | null,
+    trackingToken?: string | null
+  ) => {
+    if (!email) return;
+    await sendEmailToAddresses([email], 'ticket_updated', {
+      ticket_title: ticketTitle,
+      message,
+      user_name: solicitanteNome || 'Solicitante',
+      action_url: trackingToken
+        ? `https://atendimento.ncoisas.digital/acompanhar/${trackingToken}`
+        : undefined,
+    });
+  };
+
   const getTeamMembersForCompany = async (companyId: string): Promise<string[]> => {
     try {
       const { data: teamClients } = await supabase
@@ -143,6 +195,8 @@ export const useEmailNotifications = () => {
 
   return {
     sendEmailToUsers,
+    sendEmailToAddresses,
+    notifySolicitante,
     notifyTicketCreated,
     notifyTicketUpdated,
     notifyTicketApproved,

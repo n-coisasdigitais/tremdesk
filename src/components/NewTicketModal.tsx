@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { TicketCategorySelect } from './TicketCategorySelect';
 import { useCategories } from '@/hooks/useCategories';
+import { useSavedContacts } from '@/hooks/useSavedContacts';
 
 interface NewTicketModalProps {
   open: boolean;
@@ -56,6 +57,18 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
   const [assignedTo, setAssignedTo] = useState('');
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [requiresApproval, setRequiresApproval] = useState(false);
+  // Solicitante: pessoa que pediu a demanda. Recebe status/movimentações por
+  // e-mail, mesmo sem ter login. Se um dia criar conta com o mesmo e-mail,
+  // as demandas são vinculadas a ela automaticamente (trigger no banco).
+  const [solicitanteNome, setSolicitanteNome] = useState('');
+  const [solicitanteEmail, setSolicitanteEmail] = useState('');
+  const [saveContact, setSaveContact] = useState(false);
+  const { contacts, createContact } = useSavedContacts();
+
+  const handleContactPick = (email: string) => {
+    const contact = contacts.find((c) => c.email === email.toLowerCase().trim());
+    if (contact) setSolicitanteNome(contact.name);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -104,13 +117,30 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
         assigned_to: assignedTo || null,
         due_date: dueDate ? format(dueDate, 'yyyy-MM-dd') : null,
         requires_approval: requiresApproval,
+        solicitante_nome: solicitanteNome.trim() || null,
+        solicitante_email: solicitanteEmail.trim().toLowerCase() || null,
       });
 
       if (data?.id && selectedCategories.length > 0) {
         await assignCategories(data.id, selectedCategories);
       }
 
+      if (saveContact && solicitanteNome.trim() && solicitanteEmail.trim()) {
+        const exists = contacts.some(
+          (c) => c.email === solicitanteEmail.trim().toLowerCase()
+        );
+        if (!exists) {
+          await createContact({
+            name: solicitanteNome.trim(),
+            email: solicitanteEmail.trim(),
+          });
+        }
+      }
+
       // Reset form
+      setSolicitanteNome('');
+      setSolicitanteEmail('');
+      setSaveContact(false);
       setTitle('');
       setDescription(null);
       setSelectedCategories([]);
@@ -166,6 +196,57 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
                 selectedCategories={selectedCategories}
                 onCategoriesChange={setSelectedCategories}
               />
+            </div>
+          </div>
+
+          <div className="space-y-3 rounded-lg border border-border p-3">
+            <div>
+              <Label className="text-sm font-medium">Solicitante</Label>
+              <p className="text-xs text-muted-foreground">
+                Quem pediu a demanda. Recebe o status e as movimentações por e-mail.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="solicitante_nome">Nome</Label>
+                <Input
+                  id="solicitante_nome"
+                  value={solicitanteNome}
+                  onChange={(e) => setSolicitanteNome(e.target.value)}
+                  placeholder="Ex: Maria Souza"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="solicitante_email">E-mail</Label>
+                <Input
+                  id="solicitante_email"
+                  type="email"
+                  list="solicitante-contatos"
+                  value={solicitanteEmail}
+                  onChange={(e) => {
+                    setSolicitanteEmail(e.target.value);
+                    handleContactPick(e.target.value);
+                  }}
+                  placeholder="maria@empresa.com"
+                />
+                <datalist id="solicitante-contatos">
+                  {contacts.map((c) => (
+                    <option key={c.id} value={c.email}>
+                      {c.name}
+                    </option>
+                  ))}
+                </datalist>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="save_contact"
+                checked={saveContact}
+                onCheckedChange={(checked) => setSaveContact(checked === true)}
+              />
+              <Label htmlFor="save_contact" className="text-sm font-normal cursor-pointer">
+                Salvar na lista de contatos
+              </Label>
             </div>
           </div>
 
