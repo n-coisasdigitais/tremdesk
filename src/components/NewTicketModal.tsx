@@ -199,6 +199,57 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
             </div>
           </div>
 
+          <div className="space-y-3 rounded-lg border border-border p-3">
+            <div>
+              <Label className="text-sm font-medium">Solicitante</Label>
+              <p className="text-xs text-muted-foreground">
+                Quem pediu a demanda. Recebe o status e as movimentações por e-mail.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="solicitante_nome">Nome</Label>
+                <Input
+                  id="solicitante_nome"
+                  value={solicitanteNome}
+                  onChange={(e) => setSolicitanteNome(e.target.value)}
+                  placeholder="Ex: Maria Souza"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="solicitante_email">E-mail</Label>
+                <Input
+                  id="solicitante_email"
+                  type="email"
+                  list="solicitante-contatos"
+                  value={solicitanteEmail}
+                  onChange={(e) => {
+                    setSolicitanteEmail(e.target.value);
+                    handleContactPick(e.target.value);
+                  }}
+                  placeholder="maria@empresa.com"
+                />
+                <datalist id="solicitante-contatos">
+                  {contacts.map((c) => (
+                    <option key={c.id} value={c.email}>
+                      {c.name}
+                    </option>
+                  ))}
+                </datalist>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="save_contact"
+                checked={saveContact}
+                onCheckedChange={(checked) => setSaveContact(checked === true)}
+              />
+              <Label htmlFor="save_contact" className="text-sm font-normal cursor-pointer">
+                Salvar na lista de contatos
+              </Label>
+            </div>
+          </div>
+
           {(isAdmin || isTeamMember) && (
             <div className="space-y-2">
               <Label>Responsável</Label>
