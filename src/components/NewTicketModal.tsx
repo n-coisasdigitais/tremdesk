@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { TicketCategorySelect } from './TicketCategorySelect';
 import { useCategories } from '@/hooks/useCategories';
+import { useSavedContacts } from '@/hooks/useSavedContacts';
 
 interface NewTicketModalProps {
   open: boolean;
