@@ -117,13 +117,30 @@ export const NewTicketModal = ({ open, onOpenChange }: NewTicketModalProps) => {
         assigned_to: assignedTo || null,
         due_date: dueDate ? format(dueDate, 'yyyy-MM-dd') : null,
         requires_approval: requiresApproval,
+        solicitante_nome: solicitanteNome.trim() || null,
+        solicitante_email: solicitanteEmail.trim().toLowerCase() || null,
       });
 
       if (data?.id && selectedCategories.length > 0) {
         await assignCategories(data.id, selectedCategories);
       }
 
+      if (saveContact && solicitanteNome.trim() && solicitanteEmail.trim()) {
+        const exists = contacts.some(
+          (c) => c.email === solicitanteEmail.trim().toLowerCase()
+        );
+        if (!exists) {
+          await createContact({
+            name: solicitanteNome.trim(),
+            email: solicitanteEmail.trim(),
+          });
+        }
+      }
+
       // Reset form
+      setSolicitanteNome('');
+      setSolicitanteEmail('');
+      setSaveContact(false);
       setTitle('');
       setDescription(null);
       setSelectedCategories([]);
