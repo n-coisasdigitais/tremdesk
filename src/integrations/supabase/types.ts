@@ -1266,6 +1266,7 @@ export type Database = {
           requires_approval: boolean | null
           solicitante_email: string | null
           solicitante_nome: string | null
+          solicitante_user_id: string | null
           status: Database["public"]["Enums"]["ticket_status"]
           title: string
           token_acompanhamento: string | null
@@ -1289,6 +1290,7 @@ export type Database = {
           requires_approval?: boolean | null
           solicitante_email?: string | null
           solicitante_nome?: string | null
+          solicitante_user_id?: string | null
           status?: Database["public"]["Enums"]["ticket_status"]
           title: string
           token_acompanhamento?: string | null
@@ -1312,6 +1314,7 @@ export type Database = {
           requires_approval?: boolean | null
           solicitante_email?: string | null
           solicitante_nome?: string | null
+          solicitante_user_id?: string | null
           status?: Database["public"]["Enums"]["ticket_status"]
           title?: string
           token_acompanhamento?: string | null
@@ -1351,6 +1354,13 @@ export type Database = {
             columns: ["daylog_id"]
             isOneToOne: false
             referencedRelation: "day_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_solicitante_user_id_fkey"
+            columns: ["solicitante_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
