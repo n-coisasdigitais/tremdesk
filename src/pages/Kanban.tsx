@@ -170,6 +170,14 @@ const TicketCard = ({ ticket, onClick, groupInfo }: TicketCardProps) => {
 
           {ticket.company && <p className="text-xs text-muted-foreground">{ticket.company.name}</p>}
 
+          {/* Nome de quem abriu a demanda (solicitante cadastrado ou criador) */}
+          {(ticket.solicitante_nome || ticket.creator?.full_name) && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <User className="h-3 w-3" />
+              {ticket.solicitante_nome || ticket.creator?.full_name}
+            </p>
+          )}
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {ticket.due_date && (
