@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, Archive, EyeOff, BookOpen, Link2 } from "lucide-react";
+import { Plus, Calendar, Archive, EyeOff, BookOpen, Link2, User } from "lucide-react";
 import { Ticket, TicketStatus } from "@/types";
 import { NewTicketModal } from "@/components/NewTicketModal";
 import { TicketDetailModal } from "@/components/TicketDetailModal";
@@ -169,6 +169,14 @@ const TicketCard = ({ ticket, onClick, groupInfo }: TicketCardProps) => {
           <h4 className="font-medium line-clamp-2 text-sm">{ticket.title}</h4>
 
           {ticket.company && <p className="text-xs text-muted-foreground">{ticket.company.name}</p>}
+
+          {/* Nome de quem abriu a demanda (solicitante cadastrado ou criador) */}
+          {(ticket.solicitante_nome || ticket.creator?.full_name) && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <User className="h-3 w-3" />
+              {ticket.solicitante_nome || ticket.creator?.full_name}
+            </p>
+          )}
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

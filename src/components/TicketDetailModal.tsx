@@ -81,7 +81,9 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
   const { user, profile, isAdmin, isTeamMember, isClientAdmin, isClientUser } = useAuth();
   const isClient = isClientAdmin || isClientUser;
   const { toast } = useToast();
-  const { notifyMention, notifyTicketUpdated } = useEmailNotifications();
+  const { notifyMention, notifyTicketUpdated, notifySolicitante } = useEmailNotifications();
+  // NOVO — controla se o comentário também é enviado por e-mail ao solicitante
+  const [notifySolicitanteOnComment, setNotifySolicitanteOnComment] = useState(true);
   const [comments, setComments] = useState<TicketComment[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
@@ -240,6 +242,18 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
         // Send email notification
         await notifyMention(mentionedUserId, ticket.title, profile?.full_name || "Alguém", commentPreview);
       }
+
+      // NOVO — responde ao solicitante por e-mail, com link de acompanhamento
+      if (notifySolicitanteOnComment && ticket.solicitante_email) {
+        notifySolicitante(
+          ticket.solicitante_email,
+          ticket.title,
+          `${profile?.full_name || "Equipe"} respondeu na sua demanda:<br><br>${commentPreview}`,
+          ticket.solicitante_nome,
+          ticket.token_acompanhamento,
+        ).catch((err) => console.log("Email ao solicitante falhou:", err));
+      }
+
 
       setNewComment(null);
       await fetchData();
@@ -910,7 +924,21 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
               onChange={setNewComment}
               placeholder="Escreva um comentário... Use @nome para mencionar"
             />
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              {/* NOVO — resposta direta ao solicitante por e-mail, com link de acompanhamento */}
+              {ticket.solicitante_email ? (
+                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={notifySolicitanteOnComment}
+                    onChange={(e) => setNotifySolicitanteOnComment(e.target.checked)}
+                  />
+                  Enviar por e-mail para {ticket.solicitante_nome || ticket.solicitante_email}
+                </label>
+              ) : (
+                <span />
+              )}
               <Button onClick={handleAddComment} disabled={loading || !newComment}>
                 <Send className="h-4 w-4 mr-2" />
                 Enviar
