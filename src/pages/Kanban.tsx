@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, Archive, EyeOff, BookOpen, Link2 } from "lucide-react";
+import { Plus, Calendar, Archive, EyeOff, BookOpen, Link2, User } from "lucide-react";
 import { Ticket, TicketStatus } from "@/types";
 import { NewTicketModal } from "@/components/NewTicketModal";
 import { TicketDetailModal } from "@/components/TicketDetailModal";
