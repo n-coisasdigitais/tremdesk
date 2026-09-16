@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.get_ticket_attachments_by_token(uuid);

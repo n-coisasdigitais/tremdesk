@@ -49,7 +49,18 @@ interface CriarDemandaBody {
   attachment?: AttachmentPayload;
 }
 
-type RequestBody = ResolverEmpresaBody | CriarDemandaBody;
+interface ListarAnexosBody {
+  action: "listar_anexos";
+  token: string;
+}
+
+interface AbrirAnexoBody {
+  action: "abrir_anexo";
+  token: string;
+  attachment_id: string;
+}
+
+type RequestBody = ResolverEmpresaBody | CriarDemandaBody | ListarAnexosBody | AbrirAnexoBody;
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -62,6 +73,74 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: RequestBody = await req.json();
+
+    // Lista somente os metadados dos anexos ligados ao token informado.
+    // O caminho interno do arquivo nunca e devolvido ao navegador.
+    if (body.action === "listar_anexos") {
+      if (!body.token) return json({ error: "token e obrigatorio" }, 400);
+
+      const { data: ticket, error: ticketError } = await supabase
+        .from("tickets")
+        .select("id")
+        .eq("token_acompanhamento", body.token)
+        .maybeSingle();
+
+      if (ticketError || !ticket) return json({ error: "Demanda nao encontrada" }, 404);
+
+      const { data: attachments, error: attachmentsError } = await supabase
+        .from("ticket_attachments")
+        .select("id, file_name, file_type, created_at")
+        .eq("ticket_id", ticket.id)
+        .order("created_at", { ascending: false });
+
+      if (attachmentsError) {
+        console.error("Erro ao listar anexos:", attachmentsError);
+        return json({ error: "Erro ao carregar anexos" }, 500);
+      }
+
+      return json({ attachments: attachments || [] });
+    }
+
+    // Valida novamente o token e o anexo antes de entregar um link. Arquivos
+    // locais recebem uma URL assinada curta; links externos sao devolvidos
+    // somente depois da mesma validacao.
+    if (body.action === "abrir_anexo") {
+      if (!body.token || !body.attachment_id) {
+        return json({ error: "token e attachment_id sao obrigatorios" }, 400);
+      }
+
+      const { data: ticket, error: ticketError } = await supabase
+        .from("tickets")
+        .select("id")
+        .eq("token_acompanhamento", body.token)
+        .maybeSingle();
+
+      if (ticketError || !ticket) return json({ error: "Demanda nao encontrada" }, 404);
+
+      const { data: attachment, error: attachmentError } = await supabase
+        .from("ticket_attachments")
+        .select("file_url")
+        .eq("id", body.attachment_id)
+        .eq("ticket_id", ticket.id)
+        .maybeSingle();
+
+      if (attachmentError || !attachment) return json({ error: "Anexo nao encontrado" }, 404);
+
+      if (/^https?:\/\//i.test(attachment.file_url)) {
+        return json({ url: attachment.file_url });
+      }
+
+      const { data: signed, error: signedError } = await supabase.storage
+        .from("attachments")
+        .createSignedUrl(attachment.file_url, 300);
+
+      if (signedError || !signed?.signedUrl) {
+        console.error("Erro ao assinar anexo:", signedError);
+        return json({ error: "Nao foi possivel abrir o anexo" }, 500);
+      }
+
+      return json({ url: signed.signedUrl });
+    }
 
     // ---------------------------------------------------------------
     // Acao 1: resolver o slug da URL para o nome da empresa a exibir,

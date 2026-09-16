@@ -1415,6 +1415,7 @@ export type Database = {
         Args: { p_token: string }
         Returns: {
           category: string
+          company_logo_url: string
           company_name: string
           completed_at: string
           created_at: string

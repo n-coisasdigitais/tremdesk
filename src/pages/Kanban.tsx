@@ -34,14 +34,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 // da coluna nao varia mais por status, vira cinza neutro (`bgColor`).
 // Ver claude/rita-melhoria-visual.md.
 const statusConfig: Record<TicketStatus, { label: string; color: string; bgColor: string }> = {
-  novo: { label: "Novo", color: "bg-blue-500", bgColor: "bg-muted/40" },
-  em_andamento: { label: "Em Andamento", color: "bg-yellow-500", bgColor: "bg-muted/40" },
-  bloqueado: { label: "Bloqueado", color: "bg-rose-600", bgColor: "bg-muted/40" },
-  aguardando_aprovacao: { label: "Aguardando", color: "bg-orange-500", bgColor: "bg-muted/40" },
-  aprovado: { label: "Aprovado", color: "bg-green-500", bgColor: "bg-muted/40" },
-  concluido: { label: "Concluído", color: "bg-gray-500", bgColor: "bg-muted/40" },
-  cancelado: { label: "Cancelado", color: "bg-red-500", bgColor: "bg-muted/40" },
-  arquivado: { label: "Arquivado", color: "bg-slate-500", bgColor: "bg-muted/40" },
+  novo: { label: "Novo", color: "bg-status-new", bgColor: "bg-muted/40" },
+  em_andamento: { label: "Em Andamento", color: "bg-status-progress", bgColor: "bg-muted/40" },
+  bloqueado: { label: "Bloqueado", color: "bg-status-blocked", bgColor: "bg-muted/40" },
+  aguardando_aprovacao: { label: "Aguardando", color: "bg-status-waiting", bgColor: "bg-muted/40" },
+  aprovado: { label: "Aprovado", color: "bg-status-approved", bgColor: "bg-muted/40" },
+  concluido: { label: "Concluído", color: "bg-status-completed", bgColor: "bg-muted/40" },
+  cancelado: { label: "Cancelado", color: "bg-status-cancelled", bgColor: "bg-muted/40" },
+  arquivado: { label: "Arquivado", color: "bg-status-archived", bgColor: "bg-muted/40" },
 };
 
 const priorityConfig = {
