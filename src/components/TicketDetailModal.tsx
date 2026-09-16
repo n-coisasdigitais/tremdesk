@@ -81,7 +81,9 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
   const { user, profile, isAdmin, isTeamMember, isClientAdmin, isClientUser } = useAuth();
   const isClient = isClientAdmin || isClientUser;
   const { toast } = useToast();
-  const { notifyMention, notifyTicketUpdated } = useEmailNotifications();
+  const { notifyMention, notifyTicketUpdated, notifySolicitante } = useEmailNotifications();
+  // NOVO — controla se o comentário também é enviado por e-mail ao solicitante
+  const [notifySolicitanteOnComment, setNotifySolicitanteOnComment] = useState(true);
   const [comments, setComments] = useState<TicketComment[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
