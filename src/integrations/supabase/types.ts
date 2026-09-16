@@ -1411,10 +1411,21 @@ export type Database = {
         Returns: boolean
       }
       generate_protocolo: { Args: never; Returns: string }
+      get_ticket_attachments_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          created_at: string
+          file_name: string
+          file_type: string
+          id: string
+          is_external: boolean
+        }[]
+      }
       get_ticket_by_token: {
         Args: { p_token: string }
         Returns: {
           category: string
+          company_logo_url: string
           company_name: string
           completed_at: string
           created_at: string
