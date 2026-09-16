@@ -4,8 +4,8 @@
 //     (nunca a lista completa, evita expor a carteira de clientes) e a
 //     lista de categorias ativas cadastradas em Admin > Categorias.
 //   - action "criar": recebe os dados do formulario, valida, gera protocolo
-//     e token, insere o ticket, associa a categoria escolhida, sobe o anexo
-//     (se houver) e dispara o e-mail de confirmacao reaproveitando a funcao
+//     e token, insere o ticket, associa a categoria escolhida, envia o anexo
+//     ao Google Drive da empresa (se houver) e dispara o e-mail de confirmacao reaproveitando a funcao
 //     "send-email" ja existente.
 //
 // Segue o mesmo padrao das funcoes existentes (send-email, google-drive-folders):
@@ -154,7 +154,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       const { data: company, error } = await supabase
         .from("companies")
-        .select("id, name")
+        .select("id, name, logo_url")
         .eq("slug", slug)
         .maybeSingle();
 
@@ -183,6 +183,7 @@ const handler = async (req: Request): Promise<Response> => {
       return json({
         company_id: company.id,
         company_name: company.name,
+        company_logo_url: company.logo_url,
         categories: categories || [],
       });
     }
@@ -203,7 +204,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       const { data: company, error: companyError } = await supabase
         .from("companies")
-        .select("id, name")
+        .select("id, name, google_drive_folder_id")
         .eq("slug", slug)
         .maybeSingle();
 
@@ -281,36 +282,47 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
 
-      // Anexo (opcional). Sobe direto pro bucket "attachments" do Supabase
-      // Storage com service role (mesmo bucket usado por TicketAttachments.tsx
-      // no painel interno) e registra a linha em ticket_attachments.
+      // Anexo (opcional). O arquivo segue exclusivamente para a pasta da
+      // demanda no Google Drive da empresa. Nao ha fallback para Storage.
       if (attachment?.file_base64) {
         try {
-          const fileExt = attachment.file_name.split(".").pop() || "bin";
-          const storagePath = `${ticket.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-          const bytes = base64ToUint8Array(attachment.file_base64);
-
-          const { error: uploadError } = await supabase.storage.from("attachments").upload(storagePath, bytes, {
-            contentType: attachment.file_type || "application/octet-stream",
+          const { data: driveUpload, error: uploadError } = await supabase.functions.invoke("google-drive-folders", {
+            body: {
+              action: "upload_file",
+              company_id: company.id,
+              demand_id: ticket.id,
+              file_name: attachment.file_name,
+              file_type: attachment.file_type || "application/octet-stream",
+              file_content: attachment.file_base64,
+            },
           });
 
-          if (uploadError) throw uploadError;
+          if (uploadError || driveUpload?.error || !driveUpload?.file_id || !driveUpload?.file_url) {
+            throw new Error(driveUpload?.error || uploadError?.message || "Falha no envio para o Google Drive");
+          }
 
           const { error: attError } = await supabase.from("ticket_attachments").insert([
             {
               ticket_id: ticket.id,
               file_name: attachment.file_name,
               file_type: attachment.file_type,
-              file_url: storagePath,
+              file_url: driveUpload.file_url,
               uploaded_by: null,
+              google_drive_file_id: driveUpload.file_id,
+              google_drive_folder_id: driveUpload.folder_id,
             },
           ]);
 
           if (attError) throw attError;
         } catch (attErr: any) {
-          // Nao falha a criacao da demanda por causa do anexo; loga e segue
-          // (mesmo padrao ja usado pro envio de e-mail, abaixo).
-          console.error("Erro ao anexar arquivo do formulario publico:", attErr);
+          console.error("Erro ao anexar arquivo no Google Drive:", attErr);
+          // Evita confirmar uma demanda cujo anexo solicitado nao foi salvo.
+          // A limpeza inclui a categoria antes do ticket para funcionar mesmo
+          // em instalacoes antigas sem ON DELETE CASCADE nessa relacao.
+          await supabase.from("ticket_category_assignments").delete().eq("ticket_id", ticket.id);
+          const { error: cleanupError } = await supabase.from("tickets").delete().eq("id", ticket.id);
+          if (cleanupError) console.error("Erro ao desfazer demanda apos falha no Drive:", cleanupError);
+          return json({ error: "Nao foi possivel salvar o anexo no Google Drive. A demanda nao foi enviada." }, 502);
         }
       }
 
@@ -350,15 +362,6 @@ const handler = async (req: Request): Promise<Response> => {
     return json({ error: error.message }, 500);
   }
 };
-
-function base64ToUint8Array(base64: string): Uint8Array {
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
