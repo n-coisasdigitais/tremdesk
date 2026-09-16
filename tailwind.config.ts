@@ -67,6 +67,16 @@ export default {
           dark: "hsl(var(--ncoisas-dark))",
           champagne: "hsl(var(--ncoisas-champagne))",
         },
+        status: {
+          new: "hsl(var(--status-new))",
+          progress: "hsl(var(--status-progress))",
+          blocked: "hsl(var(--status-blocked))",
+          waiting: "hsl(var(--status-waiting))",
+          approved: "hsl(var(--status-approved))",
+          completed: "hsl(var(--status-completed))",
+          cancelled: "hsl(var(--status-cancelled))",
+          archived: "hsl(var(--status-archived))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

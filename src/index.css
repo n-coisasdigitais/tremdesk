@@ -41,6 +41,16 @@ All colors MUST be HSL.
     --input: 0 0% 88%;
     --ring: 66 75% 49%;
 
+    /* Etapas das demandas — compartilhadas pelo Kanban e acompanhamento */
+    --status-new: 217 91% 60%;
+    --status-progress: 45 93% 47%;
+    --status-blocked: 347 77% 50%;
+    --status-waiting: 25 95% 53%;
+    --status-approved: 142 71% 45%;
+    --status-completed: 215 16% 47%;
+    --status-cancelled: 0 84% 60%;
+    --status-archived: 215 20% 45%;
+
     --radius: 0.5rem;
 
     /* N Coisas Brand Colors - #C7D423 e #434343 */
@@ -88,6 +98,15 @@ All colors MUST be HSL.
     --border: 0 0% 38%;
     --input: 0 0% 38%;
     --ring: 66 75% 49%;
+
+    --status-new: 217 91% 64%;
+    --status-progress: 45 93% 55%;
+    --status-blocked: 347 77% 58%;
+    --status-waiting: 25 95% 58%;
+    --status-approved: 142 71% 50%;
+    --status-completed: 215 16% 60%;
+    --status-cancelled: 0 84% 65%;
+    --status-archived: 215 20% 60%;
 
     /* N Coisas Brand Colors - #C7D423 e #434343 */
     --ncoisas-lime: 66 75% 49%;
