@@ -910,7 +910,21 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
               onChange={setNewComment}
               placeholder="Escreva um comentário... Use @nome para mencionar"
             />
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              {/* NOVO — resposta direta ao solicitante por e-mail, com link de acompanhamento */}
+              {ticket.solicitante_email ? (
+                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={notifySolicitanteOnComment}
+                    onChange={(e) => setNotifySolicitanteOnComment(e.target.checked)}
+                  />
+                  Enviar por e-mail para {ticket.solicitante_nome || ticket.solicitante_email}
+                </label>
+              ) : (
+                <span />
+              )}
               <Button onClick={handleAddComment} disabled={loading || !newComment}>
                 <Send className="h-4 w-4 mr-2" />
                 Enviar
