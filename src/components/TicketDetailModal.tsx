@@ -243,6 +243,18 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
         await notifyMention(mentionedUserId, ticket.title, profile?.full_name || "Alguém", commentPreview);
       }
 
+      // NOVO — responde ao solicitante por e-mail, com link de acompanhamento
+      if (notifySolicitanteOnComment && ticket.solicitante_email) {
+        notifySolicitante(
+          ticket.solicitante_email,
+          ticket.title,
+          `${profile?.full_name || "Equipe"} respondeu na sua demanda:<br><br>${commentPreview}`,
+          ticket.solicitante_nome,
+          ticket.token_acompanhamento,
+        ).catch((err) => console.log("Email ao solicitante falhou:", err));
+      }
+
+
       setNewComment(null);
       await fetchData();
       toast({ title: "Comentário adicionado!" });
