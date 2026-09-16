@@ -269,7 +269,7 @@ export default function NovaDemandaPublica() {
         </section>
 
         <section aria-label="Etapas do formulário" className="mb-6 overflow-x-auto border-y bg-card px-2 py-5 sm:px-5">
-          <div className="flex min-w-[620px] items-start">
+          <div className="flex w-full items-start">
             {STEPS.map((item, index) => {
               const Icon = item.icon;
               const complete = item.number < step;
@@ -280,7 +280,7 @@ export default function NovaDemandaPublica() {
                   <div className={cn("relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 bg-card", (complete || active) ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground")}>
                     {complete ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
                   </div>
-                  <span className={cn("mt-2 text-xs font-medium", active ? "text-foreground" : "text-muted-foreground")}>{item.label}</span>
+                  <span className={cn("mt-2 px-1 text-[10px] font-medium sm:text-xs", active ? "text-foreground" : "text-muted-foreground")}>{item.label}</span>
                 </div>
               );
             })}
