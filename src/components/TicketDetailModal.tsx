@@ -703,6 +703,32 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
                   Concluída em {format(new Date(ticket.completed_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                 </Badge>
               )}
+
+              {/* Prazo para o solicitante aprovar no portal */}
+              {ticket.status === "aguardando_aprovacao" && canChangeStatus && (
+                <div className="flex items-center gap-2 rounded-md border px-2 py-1">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">Prazo p/ aprovação:</span>
+                  <input
+                    type="datetime-local"
+                    aria-label="Prazo para aprovação do solicitante"
+                    className="h-7 rounded-md border bg-background px-2 text-xs"
+                    value={
+                      ticket.approval_deadline
+                        ? format(new Date(ticket.approval_deadline), "yyyy-MM-dd'T'HH:mm")
+                        : ""
+                    }
+                    onChange={(e) => handleApprovalDeadlineChange(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+              )}
+
+              {ticket.auto_approved_at && (
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Aprovação automática por prazo
+                </Badge>
+              )}
             </div>
 
             <div className="flex gap-2">
