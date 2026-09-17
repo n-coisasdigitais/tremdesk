@@ -6,16 +6,20 @@ import {
   Building2,
   CalendarDays,
   Check,
+  CheckSquare,
   Clock3,
   ExternalLink,
   File,
   FileArchive,
   FileImage,
   FileText,
+  Link2,
   Loader2,
   MessageSquareText,
   Paperclip,
   Send,
+  ShieldCheck,
+  ThumbsUp,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { StaticLogo } from "@/components/AnimatedLogo";
@@ -23,6 +27,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -51,7 +57,26 @@ interface TicketPublico {
   updated_at: string;
   due_date: string | null;
   completed_at: string | null;
+  approval_deadline: string | null;
+  auto_approved_at: string | null;
+  approval_status: string | null;
+  approval_feedback: string | null;
+  approval_decided_at: string | null;
 }
+
+interface ChecklistItemPublico {
+  id: string;
+  content: string;
+  is_completed: boolean;
+  position: number;
+}
+
+interface DemandaVinculada {
+  protocolo: string | null;
+  title: string;
+  status: string;
+}
+
 
 interface HistoricoItem {
   id: string;
@@ -108,6 +133,14 @@ export default function AcompanharDemanda() {
   const [novaMensagem, setNovaMensagem] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [openingAttachmentId, setOpeningAttachmentId] = useState<string | null>(null);
+  const [checklist, setChecklist] = useState<ChecklistItemPublico[]>([]);
+  const [vinculadas, setVinculadas] = useState<DemandaVinculada[]>([]);
+  const [decisao, setDecisao] = useState<"aprovado" | "changes_requested" | null>(null);
+  const [observacao, setObservacao] = useState("");
+  const [codigo, setCodigo] = useState("");
+  const [codigoEnviadoPara, setCodigoEnviadoPara] = useState<string | null>(null);
+  const [enviandoCodigo, setEnviandoCodigo] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
 
   const carregarHistorico = useCallback(async () => {
     if (!token) return;
@@ -123,6 +156,26 @@ export default function AcompanharDemanda() {
     if (!error && !data?.error) setAttachments((data?.attachments || []) as PublicAttachment[]);
   }, [token]);
 
+  const carregarDetalhes = useCallback(async () => {
+    if (!token) return;
+    const { data, error } = await supabase.functions.invoke("demanda-publica", {
+      body: { action: "detalhes", token },
+    });
+    if (!error && !data?.error) {
+      setChecklist((data?.checklist || []) as ChecklistItemPublico[]);
+      setVinculadas((data?.linked || []) as DemandaVinculada[]);
+    }
+  }, [token]);
+
+  const carregarTicket = useCallback(async () => {
+    if (!token) return null;
+    const { data, error } = await supabase.rpc("get_ticket_by_token", { p_token: token });
+    if (error || !data || data.length === 0) return null;
+    const found = data[0] as TicketPublico;
+    setTicket(found);
+    return found;
+  }, [token]);
+
   useEffect(() => {
     const fetchTicket = async () => {
       if (!token) {
@@ -131,17 +184,57 @@ export default function AcompanharDemanda() {
         return;
       }
 
-      const { data, error } = await supabase.rpc("get_ticket_by_token", { p_token: token });
-      if (error || !data || data.length === 0) {
+      const found = await carregarTicket();
+      if (!found) {
         setNaoEncontrado(true);
       } else {
-        setTicket(data[0] as TicketPublico);
-        await Promise.all([carregarHistorico(), carregarAnexos()]);
+        await Promise.all([carregarHistorico(), carregarAnexos(), carregarDetalhes()]);
       }
       setLoading(false);
     };
     fetchTicket();
-  }, [token, carregarHistorico, carregarAnexos]);
+  }, [token, carregarTicket, carregarHistorico, carregarAnexos, carregarDetalhes]);
+
+  const solicitarCodigo = async () => {
+    if (!token || !decisao) return;
+    if (decisao === "changes_requested" && !observacao.trim()) {
+      toast.error("Descreva os ajustes necessários.");
+      return;
+    }
+    setEnviandoCodigo(true);
+    const { data, error } = await supabase.functions.invoke("demanda-publica", {
+      body: { action: "solicitar_codigo_aprovacao", token, decision: decisao, feedback: observacao.trim() },
+    });
+    setEnviandoCodigo(false);
+
+    if (error || data?.error) {
+      toast.error(data?.error || "Não foi possível enviar o código. Tente novamente.");
+      return;
+    }
+    setCodigoEnviadoPara(data?.sent_to || null);
+    toast.success("Código enviado para o seu e-mail.");
+  };
+
+  const confirmarDecisao = async () => {
+    if (!token || codigo.trim().length < 6) return;
+    setConfirmando(true);
+    const { data, error } = await supabase.functions.invoke("demanda-publica", {
+      body: { action: "registrar_aprovacao", token, code: codigo.trim() },
+    });
+    setConfirmando(false);
+
+    if (error || data?.error) {
+      toast.error(data?.error || "Não foi possível confirmar. Verifique o código.");
+      return;
+    }
+
+    setCodigo("");
+    setCodigoEnviadoPara(null);
+    setDecisao(null);
+    setObservacao("");
+    toast.success(data?.decision === "aprovado" ? "Demanda aprovada!" : "Ajustes solicitados!");
+    await Promise.all([carregarTicket(), carregarHistorico()]);
+  };
 
   const currentStageIndex = useMemo(() => {
     if (!ticket) return -1;
@@ -273,6 +366,108 @@ export default function AcompanharDemanda() {
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <section className="space-y-6">
+            {ticket.status === "aguardando_aprovacao" && (
+              <Card className="border-status-waiting/40">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ShieldCheck className="h-4 w-4 text-status-waiting" /> Sua aprovação
+                  </CardTitle>
+                  <CardDescription>
+                    {ticket.approval_deadline
+                      ? `Responda até ${format(new Date(ticket.approval_deadline), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}. Sem resposta até essa data, a demanda será concluída automaticamente.`
+                      : "Confirme sua decisão sobre a entrega desta demanda."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={decisao === "aprovado" ? "default" : "outline"}
+                      onClick={() => {
+                        setDecisao("aprovado");
+                        setCodigoEnviadoPara(null);
+                      }}
+                    >
+                      <ThumbsUp className="mr-2 h-4 w-4" /> Aprovar
+                    </Button>
+                    <Button
+                      variant={decisao === "changes_requested" ? "default" : "outline"}
+                      onClick={() => {
+                        setDecisao("changes_requested");
+                        setCodigoEnviadoPara(null);
+                      }}
+                    >
+                      <MessageSquareText className="mr-2 h-4 w-4" /> Solicitar ajustes
+                    </Button>
+                  </div>
+
+                  {decisao === "changes_requested" && (
+                    <Textarea
+                      aria-label="Ajustes necessários"
+                      placeholder="Descreva os ajustes necessários..."
+                      value={observacao}
+                      onChange={(event) => setObservacao(event.target.value)}
+                      rows={3}
+                      maxLength={2000}
+                      disabled={!!codigoEnviadoPara}
+                    />
+                  )}
+
+                  {decisao && !codigoEnviadoPara && (
+                    <Button onClick={solicitarCodigo} disabled={enviandoCodigo}>
+                      {enviandoCodigo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                      Enviar código por e-mail
+                    </Button>
+                  )}
+
+                  {codigoEnviadoPara && (
+                    <div className="space-y-3 rounded-md border bg-muted/40 p-3">
+                      <p className="text-sm text-muted-foreground">
+                        Enviamos um código de 6 dígitos para <strong>{codigoEnviadoPara}</strong>. Ele vale por 30 minutos.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Input
+                          aria-label="Código de confirmação"
+                          value={codigo}
+                          onChange={(event) => setCodigo(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                          inputMode="numeric"
+                          placeholder="000000"
+                          className="w-32 text-center tracking-[0.4em]"
+                        />
+                        <Button onClick={confirmarDecisao} disabled={confirmando || codigo.length < 6}>
+                          {confirmando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                          Confirmar
+                        </Button>
+                        <Button variant="ghost" onClick={solicitarCodigo} disabled={enviandoCodigo}>
+                          Reenviar código
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {ticket.status !== "aguardando_aprovacao" && ticket.approval_status && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ShieldCheck className="h-4 w-4" /> Decisão registrada
+                  </CardTitle>
+                  <CardDescription>
+                    {ticket.approval_status === "approved" ? "Demanda aprovada" : "Ajustes solicitados"}
+                    {ticket.approval_decided_at
+                      ? ` em ${format(new Date(ticket.approval_decided_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`
+                      : ""}
+                  </CardDescription>
+                </CardHeader>
+                {ticket.approval_feedback && (
+                  <CardContent>
+                    <p className="whitespace-pre-line text-sm text-muted-foreground">{ticket.approval_feedback}</p>
+                  </CardContent>
+                )}
+              </Card>
+            )}
+
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base"><MessageSquareText className="h-4 w-4" /> Histórico</CardTitle>
@@ -323,6 +518,64 @@ export default function AcompanharDemanda() {
           </section>
 
           <aside className="space-y-4">
+            {checklist.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base"><CheckSquare className="h-4 w-4" /> Checklist</CardTitle>
+                  <CardDescription>
+                    {checklist.filter((item) => item.is_completed).length}/{checklist.length} concluídos
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Progress
+                    value={(checklist.filter((item) => item.is_completed).length / checklist.length) * 100}
+                    className="h-2"
+                  />
+                  <ul className="space-y-2">
+                    {checklist.map((item) => (
+                      <li key={item.id} className="flex items-start gap-2 text-sm">
+                        <span
+                          className={cn(
+                            "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border",
+                            item.is_completed ? "border-transparent bg-status-completed" : "border-border",
+                          )}
+                        >
+                          {item.is_completed && <Check className="h-3 w-3 text-primary-foreground" />}
+                        </span>
+                        <span className={item.is_completed ? "text-muted-foreground line-through" : ""}>{item.content}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            {vinculadas.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base"><Link2 className="h-4 w-4" /> Demandas vinculadas</CardTitle>
+                  <CardDescription>{vinculadas.length} relacionada{vinculadas.length > 1 ? "s" : ""}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {vinculadas.map((item, index) => {
+                    const config = statusConfig[item.status] || statusConfig.novo;
+                    return (
+                      <div key={`${item.protocolo || item.title}-${index}`} className="border-t pt-3 first:border-t-0 first:pt-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold uppercase text-muted-foreground">{item.protocolo || "—"}</span>
+                          <Badge variant="outline" className={cn("gap-2 border-transparent text-xs", config.soft, config.text)}>
+                            <span className={cn("h-1.5 w-1.5 rounded-full", config.dot)} />
+                            {config.label}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 text-sm font-medium">{item.title}</p>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-base">Prazos</CardTitle></CardHeader>
               <CardContent className="space-y-4 text-sm">
@@ -334,6 +587,17 @@ export default function AcompanharDemanda() {
                   <Clock3 className="mt-0.5 h-4 w-4 text-muted-foreground" />
                   <div><p className="text-xs text-muted-foreground">Conclusão real</p><p className="font-medium">{ticket.completed_at ? format(new Date(ticket.completed_at), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR }) : "Em andamento"}</p></div>
                 </div>
+                {ticket.approval_deadline && (
+                  <div className="flex gap-3">
+                    <ShieldCheck className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Prazo para aprovação</p>
+                      <p className="font-medium">
+                        {format(new Date(ticket.approval_deadline), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

@@ -927,6 +927,53 @@ export type Database = {
           },
         ]
       }
+      ticket_approval_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          decision: string
+          email: string
+          expires_at: string
+          feedback: string | null
+          id: string
+          ticket_id: string
+          used_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          decision: string
+          email: string
+          expires_at: string
+          feedback?: string | null
+          id?: string
+          ticket_id: string
+          used_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          decision?: string
+          email?: string
+          expires_at?: string
+          feedback?: string | null
+          id?: string
+          ticket_id?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_approval_codes_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_attachments: {
         Row: {
           created_at: string
@@ -1250,7 +1297,9 @@ export type Database = {
       tickets: {
         Row: {
           approval_assignee: string | null
+          approval_deadline: string | null
           assigned_to: string | null
+          auto_approved_at: string | null
           category: Database["public"]["Enums"]["ticket_category"]
           company_id: string
           completed_at: string | null
@@ -1274,7 +1323,9 @@ export type Database = {
         }
         Insert: {
           approval_assignee?: string | null
+          approval_deadline?: string | null
           assigned_to?: string | null
+          auto_approved_at?: string | null
           category: Database["public"]["Enums"]["ticket_category"]
           company_id: string
           completed_at?: string | null
@@ -1298,7 +1349,9 @@ export type Database = {
         }
         Update: {
           approval_assignee?: string | null
+          approval_deadline?: string | null
           assigned_to?: string | null
+          auto_approved_at?: string | null
           category?: Database["public"]["Enums"]["ticket_category"]
           company_id?: string
           completed_at?: string | null
@@ -1410,10 +1463,16 @@ export type Database = {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
       }
+      auto_conclude_expired_approvals: { Args: never; Returns: number }
       generate_protocolo: { Args: never; Returns: string }
       get_ticket_by_token: {
         Args: { p_token: string }
         Returns: {
+          approval_deadline: string
+          approval_decided_at: string
+          approval_feedback: string
+          approval_status: string
+          auto_approved_at: string
           category: string
           company_logo_url: string
           company_name: string

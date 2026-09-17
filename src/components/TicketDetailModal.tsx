@@ -445,6 +445,25 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
     }
   };
 
+  // Prazo para o solicitante aprovar no portal público. Se vencer sem resposta,
+  // a rotina do servidor conclui a demanda automaticamente.
+  const handleApprovalDeadlineChange = async (valor: string) => {
+    if (!ticket) return;
+    setLoading(true);
+    try {
+      const novoPrazo = valor ? new Date(valor).toISOString() : null;
+      const { error } = await supabase.from("tickets").update({ approval_deadline: novoPrazo }).eq("id", ticket.id);
+      if (error) throw error;
+      toast({ title: novoPrazo ? "Prazo de aprovação definido!" : "Prazo de aprovação removido" });
+      await fetchData();
+      onUpdate();
+    } catch (error: any) {
+      toast({ title: "Erro ao atualizar prazo de aprovação", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAssigneeChange = async (assigneeId: string) => {
     if (!ticket || !user) return;
 
@@ -682,6 +701,32 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
                 <Badge variant="outline" className="flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3" />
                   Concluída em {format(new Date(ticket.completed_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                </Badge>
+              )}
+
+              {/* Prazo para o solicitante aprovar no portal */}
+              {ticket.status === "aguardando_aprovacao" && canChangeStatus && (
+                <div className="flex items-center gap-2 rounded-md border px-2 py-1">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">Prazo p/ aprovação:</span>
+                  <input
+                    type="datetime-local"
+                    aria-label="Prazo para aprovação do solicitante"
+                    className="h-7 rounded-md border bg-background px-2 text-xs"
+                    value={
+                      ticket.approval_deadline
+                        ? format(new Date(ticket.approval_deadline), "yyyy-MM-dd'T'HH:mm")
+                        : ""
+                    }
+                    onChange={(e) => handleApprovalDeadlineChange(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+              )}
+
+              {ticket.auto_approved_at && (
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Aprovação automática por prazo
                 </Badge>
               )}
             </div>

@@ -60,7 +60,55 @@ interface AbrirAnexoBody {
   attachment_id: string;
 }
 
-type RequestBody = ResolverEmpresaBody | CriarDemandaBody | ListarAnexosBody | AbrirAnexoBody;
+interface DetalhesBody {
+  action: "detalhes";
+  token: string;
+}
+
+interface SolicitarCodigoBody {
+  action: "solicitar_codigo_aprovacao";
+  token: string;
+  decision: "aprovado" | "changes_requested";
+  feedback?: string;
+}
+
+interface RegistrarAprovacaoBody {
+  action: "registrar_aprovacao";
+  token: string;
+  code: string;
+}
+
+type RequestBody =
+  | ResolverEmpresaBody
+  | CriarDemandaBody
+  | ListarAnexosBody
+  | AbrirAnexoBody
+  | DetalhesBody
+  | SolicitarCodigoBody
+  | RegistrarAprovacaoBody;
+
+// Hash do codigo de aprovacao. O codigo em texto puro nunca e gravado.
+async function hashCode(ticketId: string, code: string): Promise<string> {
+  const bytes = new TextEncoder().encode(`${ticketId}:${code}`);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function comentarioTipTap(text: string) {
+  return {
+    type: "doc",
+    content: [{ type: "paragraph", content: [{ type: "text", text }] }],
+  };
+}
+
+function mascararEmail(email: string): string {
+  const [user, domain] = email.split("@");
+  if (!domain) return "***";
+  const visivel = user.slice(0, 2);
+  return `${visivel}${"*".repeat(Math.max(user.length - 2, 1))}@${domain}`;
+}
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -141,6 +189,228 @@ const handler = async (req: Request): Promise<Response> => {
 
       return json({ url: signed.signedUrl });
     }
+
+    // Checklist e demandas vinculadas, sempre validando o token primeiro e
+    // devolvendo apenas o minimo necessario para exibir no portal.
+    if (body.action === "detalhes") {
+      if (!body.token) return json({ error: "token e obrigatorio" }, 400);
+
+      const { data: ticket, error: ticketError } = await supabase
+        .from("tickets")
+        .select("id")
+        .eq("token_acompanhamento", body.token)
+        .maybeSingle();
+
+      if (ticketError || !ticket) return json({ error: "Demanda nao encontrada" }, 404);
+
+      const { data: checklist } = await supabase
+        .from("ticket_checklist_items")
+        .select("id, content, is_completed, position")
+        .eq("ticket_id", ticket.id)
+        .order("position", { ascending: true });
+
+      const { data: links } = await supabase
+        .from("ticket_links")
+        .select("source_ticket_id, target_ticket_id, link_type")
+        .or(`source_ticket_id.eq.${ticket.id},target_ticket_id.eq.${ticket.id}`);
+
+      const relatedIds = (links || [])
+        .map((l) => (l.source_ticket_id === ticket.id ? l.target_ticket_id : l.source_ticket_id))
+        .filter((id, index, arr) => arr.indexOf(id) === index);
+
+      let linked: unknown[] = [];
+      if (relatedIds.length > 0) {
+        const { data: relatedTickets } = await supabase
+          .from("tickets")
+          .select("id, protocolo, title, status")
+          .in("id", relatedIds);
+        linked = (relatedTickets || []).map((t) => ({
+          protocolo: t.protocolo,
+          title: t.title,
+          status: t.status,
+        }));
+      }
+
+      return json({ checklist: checklist || [], linked });
+    }
+
+    // Envia um codigo de 6 digitos para o e-mail cadastrado na abertura da
+    // demanda. O codigo e guardado somente como hash.
+    if (body.action === "solicitar_codigo_aprovacao") {
+      if (!body.token || !body.decision) return json({ error: "Dados obrigatorios faltando" }, 400);
+      if (body.decision !== "aprovado" && body.decision !== "changes_requested") {
+        return json({ error: "Decisao invalida" }, 400);
+      }
+      const feedback = (body.feedback || "").trim().slice(0, 2000);
+      if (body.decision === "changes_requested" && !feedback) {
+        return json({ error: "Descreva os ajustes necessarios" }, 400);
+      }
+
+      const { data: ticket, error: ticketError } = await supabase
+        .from("tickets")
+        .select("id, title, status, solicitante_email, solicitante_nome, company_id")
+        .eq("token_acompanhamento", body.token)
+        .maybeSingle();
+
+      if (ticketError || !ticket) return json({ error: "Demanda nao encontrada" }, 404);
+      if (ticket.status !== "aguardando_aprovacao") {
+        return json({ error: "Esta demanda nao esta aguardando aprovacao" }, 400);
+      }
+      if (!ticket.solicitante_email) {
+        return json({ error: "Esta demanda nao tem e-mail de solicitante cadastrado" }, 400);
+      }
+
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const code_hash = await hashCode(ticket.id, code);
+
+      // Invalida codigos anteriores ainda abertos para a mesma demanda.
+      await supabase
+        .from("ticket_approval_codes")
+        .update({ used_at: new Date().toISOString() })
+        .eq("ticket_id", ticket.id)
+        .is("used_at", null);
+
+      const { error: codeError } = await supabase.from("ticket_approval_codes").insert([
+        {
+          ticket_id: ticket.id,
+          email: ticket.solicitante_email,
+          code_hash,
+          decision: body.decision,
+          feedback: feedback || null,
+          expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        },
+      ]);
+
+      if (codeError) {
+        console.error("Erro ao gerar codigo de aprovacao:", codeError);
+        return json({ error: "Nao foi possivel gerar o codigo" }, 500);
+      }
+
+      const { error: emailError } = await supabase.functions.invoke("send-email", {
+        body: {
+          to: ticket.solicitante_email,
+          template: "custom",
+          subject: `Código de confirmação — ${ticket.title}`,
+          data: {
+            message: `<p>Olá <strong>${ticket.solicitante_nome || ""}</strong>,</p>
+              <p>Use o código abaixo para confirmar sua decisão sobre a demanda <strong>${ticket.title}</strong>:</p>
+              <div class="info-box" style="font-size:26px;letter-spacing:6px;text-align:center;"><strong>${code}</strong></div>
+              <p>O código é válido por 30 minutos.</p>`,
+          },
+        },
+      });
+
+      if (emailError) {
+        console.error("Erro ao enviar codigo por e-mail:", emailError);
+        return json({ error: "Nao foi possivel enviar o e-mail com o codigo" }, 502);
+      }
+
+      return json({ sent_to: mascararEmail(ticket.solicitante_email) });
+    }
+
+    // Valida o codigo e registra a decisao do solicitante.
+    if (body.action === "registrar_aprovacao") {
+      if (!body.token || !body.code) return json({ error: "Dados obrigatorios faltando" }, 400);
+
+      const { data: ticket, error: ticketError } = await supabase
+        .from("tickets")
+        .select("id, title, status, solicitante_nome, solicitante_email")
+        .eq("token_acompanhamento", body.token)
+        .maybeSingle();
+
+      if (ticketError || !ticket) return json({ error: "Demanda nao encontrada" }, 404);
+      if (ticket.status !== "aguardando_aprovacao") {
+        return json({ error: "Esta demanda nao esta aguardando aprovacao" }, 400);
+      }
+
+      const { data: codeRow } = await supabase
+        .from("ticket_approval_codes")
+        .select("id, code_hash, decision, feedback, expires_at, attempts, email")
+        .eq("ticket_id", ticket.id)
+        .is("used_at", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!codeRow) return json({ error: "Nenhum codigo pendente. Solicite um novo codigo." }, 400);
+
+      if (new Date(codeRow.expires_at).getTime() < Date.now()) {
+        return json({ error: "Codigo expirado. Solicite um novo codigo." }, 400);
+      }
+
+      if (codeRow.attempts >= 5) {
+        await supabase
+          .from("ticket_approval_codes")
+          .update({ used_at: new Date().toISOString() })
+          .eq("id", codeRow.id);
+        return json({ error: "Muitas tentativas. Solicite um novo codigo." }, 429);
+      }
+
+      const informado = await hashCode(ticket.id, String(body.code).trim());
+      if (informado !== codeRow.code_hash) {
+        await supabase
+          .from("ticket_approval_codes")
+          .update({ attempts: codeRow.attempts + 1 })
+          .eq("id", codeRow.id);
+        return json({ error: "Codigo incorreto", attempts_left: Math.max(4 - codeRow.attempts, 0) }, 400);
+      }
+
+      await supabase
+        .from("ticket_approval_codes")
+        .update({ used_at: new Date().toISOString() })
+        .eq("id", codeRow.id);
+
+      const aprovado = codeRow.decision === "aprovado";
+      const novoStatus = aprovado ? "aprovado" : "em_andamento";
+
+      const { error: statusError } = await supabase
+        .from("tickets")
+        .update({ status: novoStatus, updated_at: new Date().toISOString() })
+        .eq("id", ticket.id);
+
+      if (statusError) {
+        console.error("Erro ao registrar decisao:", statusError);
+        return json({ error: "Nao foi possivel registrar sua decisao" }, 500);
+      }
+
+      await supabase.from("approvals").insert([
+        {
+          ticket_id: ticket.id,
+          approved_by: null,
+          status: aprovado ? "approved" : "changes_requested",
+          feedback_json: {
+            feedback: codeRow.feedback || null,
+            email: codeRow.email,
+            confirmed_at: new Date().toISOString(),
+            source: "portal_solicitante",
+          },
+        },
+      ]);
+
+      await supabase.from("ticket_comments").insert([
+        {
+          ticket_id: ticket.id,
+          user_id: null,
+          content_json: comentarioTipTap(
+            aprovado
+              ? `Demanda aprovada pelo solicitante (${codeRow.email}), com confirmacao por codigo enviado por e-mail.`
+              : `Ajustes solicitados pelo solicitante (${codeRow.email}): ${codeRow.feedback}`,
+          ),
+        },
+      ]);
+
+      await supabase.from("ticket_activities").insert([
+        {
+          ticket_id: ticket.id,
+          user_id: null,
+          action_type: aprovado ? "approved_by_requester" : "changes_requested_by_requester",
+          metadata_json: { email: codeRow.email, feedback: codeRow.feedback },
+        },
+      ]);
+
+      return json({ status: novoStatus, decision: codeRow.decision });
+    }
+
 
     // ---------------------------------------------------------------
     // Acao 1: resolver o slug da URL para o nome da empresa a exibir,
