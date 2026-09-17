@@ -131,6 +131,14 @@ export default function AcompanharDemanda() {
   const [novaMensagem, setNovaMensagem] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [openingAttachmentId, setOpeningAttachmentId] = useState<string | null>(null);
+  const [checklist, setChecklist] = useState<ChecklistItemPublico[]>([]);
+  const [vinculadas, setVinculadas] = useState<DemandaVinculada[]>([]);
+  const [decisao, setDecisao] = useState<"aprovado" | "changes_requested" | null>(null);
+  const [observacao, setObservacao] = useState("");
+  const [codigo, setCodigo] = useState("");
+  const [codigoEnviadoPara, setCodigoEnviadoPara] = useState<string | null>(null);
+  const [enviandoCodigo, setEnviandoCodigo] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
 
   const carregarHistorico = useCallback(async () => {
     if (!token) return;
@@ -146,6 +154,26 @@ export default function AcompanharDemanda() {
     if (!error && !data?.error) setAttachments((data?.attachments || []) as PublicAttachment[]);
   }, [token]);
 
+  const carregarDetalhes = useCallback(async () => {
+    if (!token) return;
+    const { data, error } = await supabase.functions.invoke("demanda-publica", {
+      body: { action: "detalhes", token },
+    });
+    if (!error && !data?.error) {
+      setChecklist((data?.checklist || []) as ChecklistItemPublico[]);
+      setVinculadas((data?.linked || []) as DemandaVinculada[]);
+    }
+  }, [token]);
+
+  const carregarTicket = useCallback(async () => {
+    if (!token) return null;
+    const { data, error } = await supabase.rpc("get_ticket_by_token", { p_token: token });
+    if (error || !data || data.length === 0) return null;
+    const found = data[0] as TicketPublico;
+    setTicket(found);
+    return found;
+  }, [token]);
+
   useEffect(() => {
     const fetchTicket = async () => {
       if (!token) {
@@ -154,17 +182,57 @@ export default function AcompanharDemanda() {
         return;
       }
 
-      const { data, error } = await supabase.rpc("get_ticket_by_token", { p_token: token });
-      if (error || !data || data.length === 0) {
+      const found = await carregarTicket();
+      if (!found) {
         setNaoEncontrado(true);
       } else {
-        setTicket(data[0] as TicketPublico);
-        await Promise.all([carregarHistorico(), carregarAnexos()]);
+        await Promise.all([carregarHistorico(), carregarAnexos(), carregarDetalhes()]);
       }
       setLoading(false);
     };
     fetchTicket();
-  }, [token, carregarHistorico, carregarAnexos]);
+  }, [token, carregarTicket, carregarHistorico, carregarAnexos, carregarDetalhes]);
+
+  const solicitarCodigo = async () => {
+    if (!token || !decisao) return;
+    if (decisao === "changes_requested" && !observacao.trim()) {
+      toast.error("Descreva os ajustes necessários.");
+      return;
+    }
+    setEnviandoCodigo(true);
+    const { data, error } = await supabase.functions.invoke("demanda-publica", {
+      body: { action: "solicitar_codigo_aprovacao", token, decision: decisao, feedback: observacao.trim() },
+    });
+    setEnviandoCodigo(false);
+
+    if (error || data?.error) {
+      toast.error(data?.error || "Não foi possível enviar o código. Tente novamente.");
+      return;
+    }
+    setCodigoEnviadoPara(data?.sent_to || null);
+    toast.success("Código enviado para o seu e-mail.");
+  };
+
+  const confirmarDecisao = async () => {
+    if (!token || codigo.trim().length < 6) return;
+    setConfirmando(true);
+    const { data, error } = await supabase.functions.invoke("demanda-publica", {
+      body: { action: "registrar_aprovacao", token, code: codigo.trim() },
+    });
+    setConfirmando(false);
+
+    if (error || data?.error) {
+      toast.error(data?.error || "Não foi possível confirmar. Verifique o código.");
+      return;
+    }
+
+    setCodigo("");
+    setCodigoEnviadoPara(null);
+    setDecisao(null);
+    setObservacao("");
+    toast.success(data?.decision === "aprovado" ? "Demanda aprovada!" : "Ajustes solicitados!");
+    await Promise.all([carregarTicket(), carregarHistorico()]);
+  };
 
   const currentStageIndex = useMemo(() => {
     if (!ticket) return -1;
