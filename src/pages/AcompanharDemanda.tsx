@@ -6,16 +6,20 @@ import {
   Building2,
   CalendarDays,
   Check,
+  CheckSquare,
   Clock3,
   ExternalLink,
   File,
   FileArchive,
   FileImage,
   FileText,
+  Link2,
   Loader2,
   MessageSquareText,
   Paperclip,
   Send,
+  ShieldCheck,
+  ThumbsUp,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { StaticLogo } from "@/components/AnimatedLogo";
