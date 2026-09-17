@@ -60,7 +60,55 @@ interface AbrirAnexoBody {
   attachment_id: string;
 }
 
-type RequestBody = ResolverEmpresaBody | CriarDemandaBody | ListarAnexosBody | AbrirAnexoBody;
+interface DetalhesBody {
+  action: "detalhes";
+  token: string;
+}
+
+interface SolicitarCodigoBody {
+  action: "solicitar_codigo_aprovacao";
+  token: string;
+  decision: "aprovado" | "changes_requested";
+  feedback?: string;
+}
+
+interface RegistrarAprovacaoBody {
+  action: "registrar_aprovacao";
+  token: string;
+  code: string;
+}
+
+type RequestBody =
+  | ResolverEmpresaBody
+  | CriarDemandaBody
+  | ListarAnexosBody
+  | AbrirAnexoBody
+  | DetalhesBody
+  | SolicitarCodigoBody
+  | RegistrarAprovacaoBody;
+
+// Hash do codigo de aprovacao. O codigo em texto puro nunca e gravado.
+async function hashCode(ticketId: string, code: string): Promise<string> {
+  const bytes = new TextEncoder().encode(`${ticketId}:${code}`);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function comentarioTipTap(text: string) {
+  return {
+    type: "doc",
+    content: [{ type: "paragraph", content: [{ type: "text", text }] }],
+  };
+}
+
+function mascararEmail(email: string): string {
+  const [user, domain] = email.split("@");
+  if (!domain) return "***";
+  const visivel = user.slice(0, 2);
+  return `${visivel}${"*".repeat(Math.max(user.length - 2, 1))}@${domain}`;
+}
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
