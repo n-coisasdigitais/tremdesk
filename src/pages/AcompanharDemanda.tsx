@@ -587,6 +587,17 @@ export default function AcompanharDemanda() {
                   <Clock3 className="mt-0.5 h-4 w-4 text-muted-foreground" />
                   <div><p className="text-xs text-muted-foreground">Conclusão real</p><p className="font-medium">{ticket.completed_at ? format(new Date(ticket.completed_at), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR }) : "Em andamento"}</p></div>
                 </div>
+                {ticket.approval_deadline && (
+                  <div className="flex gap-3">
+                    <ShieldCheck className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Prazo para aprovação</p>
+                      <p className="font-medium">
+                        {format(new Date(ticket.approval_deadline), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
