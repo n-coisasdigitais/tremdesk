@@ -518,6 +518,64 @@ export default function AcompanharDemanda() {
           </section>
 
           <aside className="space-y-4">
+            {checklist.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base"><CheckSquare className="h-4 w-4" /> Checklist</CardTitle>
+                  <CardDescription>
+                    {checklist.filter((item) => item.is_completed).length}/{checklist.length} concluídos
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Progress
+                    value={(checklist.filter((item) => item.is_completed).length / checklist.length) * 100}
+                    className="h-2"
+                  />
+                  <ul className="space-y-2">
+                    {checklist.map((item) => (
+                      <li key={item.id} className="flex items-start gap-2 text-sm">
+                        <span
+                          className={cn(
+                            "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border",
+                            item.is_completed ? "border-transparent bg-status-completed" : "border-border",
+                          )}
+                        >
+                          {item.is_completed && <Check className="h-3 w-3 text-primary-foreground" />}
+                        </span>
+                        <span className={item.is_completed ? "text-muted-foreground line-through" : ""}>{item.content}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            {vinculadas.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base"><Link2 className="h-4 w-4" /> Demandas vinculadas</CardTitle>
+                  <CardDescription>{vinculadas.length} relacionada{vinculadas.length > 1 ? "s" : ""}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {vinculadas.map((item, index) => {
+                    const config = statusConfig[item.status] || statusConfig.novo;
+                    return (
+                      <div key={`${item.protocolo || item.title}-${index}`} className="border-t pt-3 first:border-t-0 first:pt-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold uppercase text-muted-foreground">{item.protocolo || "—"}</span>
+                          <Badge variant="outline" className={cn("gap-2 border-transparent text-xs", config.soft, config.text)}>
+                            <span className={cn("h-1.5 w-1.5 rounded-full", config.dot)} />
+                            {config.label}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 text-sm font-medium">{item.title}</p>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-base">Prazos</CardTitle></CardHeader>
               <CardContent className="space-y-4 text-sm">
