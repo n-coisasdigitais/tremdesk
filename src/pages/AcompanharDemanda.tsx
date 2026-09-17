@@ -364,6 +364,108 @@ export default function AcompanharDemanda() {
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <section className="space-y-6">
+            {ticket.status === "aguardando_aprovacao" && (
+              <Card className="border-status-waiting/40">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ShieldCheck className="h-4 w-4 text-status-waiting" /> Sua aprovação
+                  </CardTitle>
+                  <CardDescription>
+                    {ticket.approval_deadline
+                      ? `Responda até ${format(new Date(ticket.approval_deadline), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}. Sem resposta até essa data, a demanda será concluída automaticamente.`
+                      : "Confirme sua decisão sobre a entrega desta demanda."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={decisao === "aprovado" ? "default" : "outline"}
+                      onClick={() => {
+                        setDecisao("aprovado");
+                        setCodigoEnviadoPara(null);
+                      }}
+                    >
+                      <ThumbsUp className="mr-2 h-4 w-4" /> Aprovar
+                    </Button>
+                    <Button
+                      variant={decisao === "changes_requested" ? "default" : "outline"}
+                      onClick={() => {
+                        setDecisao("changes_requested");
+                        setCodigoEnviadoPara(null);
+                      }}
+                    >
+                      <MessageSquareText className="mr-2 h-4 w-4" /> Solicitar ajustes
+                    </Button>
+                  </div>
+
+                  {decisao === "changes_requested" && (
+                    <Textarea
+                      aria-label="Ajustes necessários"
+                      placeholder="Descreva os ajustes necessários..."
+                      value={observacao}
+                      onChange={(event) => setObservacao(event.target.value)}
+                      rows={3}
+                      maxLength={2000}
+                      disabled={!!codigoEnviadoPara}
+                    />
+                  )}
+
+                  {decisao && !codigoEnviadoPara && (
+                    <Button onClick={solicitarCodigo} disabled={enviandoCodigo}>
+                      {enviandoCodigo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                      Enviar código por e-mail
+                    </Button>
+                  )}
+
+                  {codigoEnviadoPara && (
+                    <div className="space-y-3 rounded-md border bg-muted/40 p-3">
+                      <p className="text-sm text-muted-foreground">
+                        Enviamos um código de 6 dígitos para <strong>{codigoEnviadoPara}</strong>. Ele vale por 30 minutos.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Input
+                          aria-label="Código de confirmação"
+                          value={codigo}
+                          onChange={(event) => setCodigo(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                          inputMode="numeric"
+                          placeholder="000000"
+                          className="w-32 text-center tracking-[0.4em]"
+                        />
+                        <Button onClick={confirmarDecisao} disabled={confirmando || codigo.length < 6}>
+                          {confirmando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                          Confirmar
+                        </Button>
+                        <Button variant="ghost" onClick={solicitarCodigo} disabled={enviandoCodigo}>
+                          Reenviar código
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {ticket.status !== "aguardando_aprovacao" && ticket.approval_status && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ShieldCheck className="h-4 w-4" /> Decisão registrada
+                  </CardTitle>
+                  <CardDescription>
+                    {ticket.approval_status === "approved" ? "Demanda aprovada" : "Ajustes solicitados"}
+                    {ticket.approval_decided_at
+                      ? ` em ${format(new Date(ticket.approval_decided_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`
+                      : ""}
+                  </CardDescription>
+                </CardHeader>
+                {ticket.approval_feedback && (
+                  <CardContent>
+                    <p className="whitespace-pre-line text-sm text-muted-foreground">{ticket.approval_feedback}</p>
+                  </CardContent>
+                )}
+              </Card>
+            )}
+
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base"><MessageSquareText className="h-4 w-4" /> Histórico</CardTitle>
