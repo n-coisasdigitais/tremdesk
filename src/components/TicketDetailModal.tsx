@@ -445,6 +445,25 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
     }
   };
 
+  // Prazo para o solicitante aprovar no portal público. Se vencer sem resposta,
+  // a rotina do servidor conclui a demanda automaticamente.
+  const handleApprovalDeadlineChange = async (valor: string) => {
+    if (!ticket) return;
+    setLoading(true);
+    try {
+      const novoPrazo = valor ? new Date(valor).toISOString() : null;
+      const { error } = await supabase.from("tickets").update({ approval_deadline: novoPrazo }).eq("id", ticket.id);
+      if (error) throw error;
+      toast({ title: novoPrazo ? "Prazo de aprovação definido!" : "Prazo de aprovação removido" });
+      await fetchData();
+      onUpdate();
+    } catch (error: any) {
+      toast({ title: "Erro ao atualizar prazo de aprovação", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAssigneeChange = async (assigneeId: string) => {
     if (!ticket || !user) return;
 
