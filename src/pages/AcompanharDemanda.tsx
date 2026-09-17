@@ -55,7 +55,26 @@ interface TicketPublico {
   updated_at: string;
   due_date: string | null;
   completed_at: string | null;
+  approval_deadline: string | null;
+  auto_approved_at: string | null;
+  approval_status: string | null;
+  approval_feedback: string | null;
+  approval_decided_at: string | null;
 }
+
+interface ChecklistItemPublico {
+  id: string;
+  content: string;
+  is_completed: boolean;
+  position: number;
+}
+
+interface DemandaVinculada {
+  protocolo: string | null;
+  title: string;
+  status: string;
+}
+
 
 interface HistoricoItem {
   id: string;
