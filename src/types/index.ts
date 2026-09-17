@@ -77,6 +77,10 @@ export interface Ticket {
   daylog_id?: string;
   requires_approval?: boolean;
   approval_assignee?: string;
+  // Prazo para o solicitante aprovar no portal; vencido, a demanda é concluída
+  // automaticamente pela rotina do servidor.
+  approval_deadline?: string | null;
+  auto_approved_at?: string | null;
   // NOVO — canal de demanda pública (ver migration 2026XXXXXX_demanda_publica.sql)
   origem?: TicketOrigem;
   protocolo?: string;
