@@ -179,7 +179,11 @@ const TicketCard = ({ ticket, onClick, groupInfo }: TicketCardProps) => {
           )}
 
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Controle interno: data de abertura */}
+              <span className="text-xs text-muted-foreground">
+                Aberta {format(new Date(ticket.created_at), "dd/MM", { locale: ptBR })}
+              </span>
               {ticket.due_date && (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Calendar className="h-3 w-3" />
@@ -225,7 +229,7 @@ const KanbanColumn = ({ status, groupedTickets, onTicketClick }: KanbanColumnPro
   });
 
   return (
-    <div className="flex flex-col w-[260px] sm:w-[280px] md:min-w-[280px] md:max-w-[320px] flex-shrink-0">
+    <div className="flex h-full flex-col w-[260px] sm:w-[280px] md:min-w-[280px] md:max-w-[320px] flex-shrink-0">
       <div className={`flex items-center justify-between p-3 rounded-t-lg ${config.bgColor}`}>
         <div className="flex items-center gap-2">
           <div className={`w-3 h-3 rounded-full ${config.color}`} />
@@ -239,7 +243,7 @@ const KanbanColumn = ({ status, groupedTickets, onTicketClick }: KanbanColumnPro
       <SortableContext items={groupedTickets.map((gt) => gt.ticket.id)} strategy={verticalListSortingStrategy}>
         <div
           ref={setNodeRef}
-          className={`flex-1 p-2 space-y-2 min-h-[300px] sm:min-h-[400px] rounded-b-lg border-x border-b transition-colors ${config.bgColor} ${isOver ? "ring-2 ring-primary ring-inset" : ""}`}
+          className={`flex-1 overflow-y-auto scrollbar-thin p-2 space-y-2 min-h-[300px] rounded-b-lg border-x border-b transition-colors ${config.bgColor} ${isOver ? "ring-2 ring-primary ring-inset" : ""}`}
         >
           {groupedTickets.map((gt) => (
             <DraggableTicketCard
