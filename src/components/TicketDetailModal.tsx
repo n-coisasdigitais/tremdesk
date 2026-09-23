@@ -655,6 +655,16 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
                 </Badge>
               )}
 
+              {/* Controle interno: abertura e última atualização */}
+              <Badge variant="outline" className="flex items-center gap-1 text-xs font-normal">
+                <CalendarIcon className="h-3 w-3" />
+                Aberta em {format(new Date(ticket.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+              </Badge>
+              <Badge variant="outline" className="flex items-center gap-1 text-xs font-normal">
+                <Clock className="h-3 w-3" />
+                Atualizada em {format(new Date(ticket.updated_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+              </Badge>
+
               {/* Previsão de conclusão: editável por equipe/admin */}
               {canChangeStatus ? (
                 <Popover>
