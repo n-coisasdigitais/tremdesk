@@ -351,6 +351,7 @@ export default function Kanban() {
   };
 
   const activeTicket = activeId ? tickets.find((t) => t.id === activeId) : null;
+  const selectedTicket = selectedTicketId ? tickets.find((t) => t.id === selectedTicketId) || null : null;
 
   return (
     <Layout>
@@ -430,7 +431,7 @@ export default function Kanban() {
       <TicketDetailModal
         ticket={selectedTicket}
         open={!!selectedTicket}
-        onOpenChange={(open) => !open && setSelectedTicket(null)}
+        onOpenChange={(open) => !open && setSelectedTicketId(null)}
         onUpdate={fetchTickets}
       />
     </Layout>
