@@ -537,6 +537,44 @@ export default function AcompanharDemanda() {
                 )}
 
                 <div className="border-t pt-4">
+                  {autorConfirmado && !editandoAutor ? (
+                    <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span>
+                        Comentando como <strong className="text-foreground">{autorNome}</strong>
+                      </span>
+                      <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setEditandoAutor(true)}>
+                        alterar
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="mb-3 grid gap-2 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="autor-nome">
+                          Seu nome
+                        </label>
+                        <Input
+                          id="autor-nome"
+                          value={autorNome}
+                          onChange={(event) => setAutorNome(event.target.value)}
+                          placeholder="Como você quer ser identificado"
+                          maxLength={120}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="autor-email">
+                          Seu e-mail (opcional)
+                        </label>
+                        <Input
+                          id="autor-email"
+                          type="email"
+                          value={autorEmail}
+                          onChange={(event) => setAutorEmail(event.target.value)}
+                          placeholder="voce@empresa.com"
+                          maxLength={200}
+                        />
+                      </div>
+                    </div>
+                  )}
                   <Textarea
                     aria-label="Nova mensagem"
                     placeholder="Escreva uma mensagem para a equipe..."
