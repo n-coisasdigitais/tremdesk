@@ -71,6 +71,7 @@ interface ActivityItem {
   created_at: string;
   user?: Profile;
   content?: any;
+  author_name?: string | null;
   action_type?: string;
   metadata_json?: any;
   status?: string;
@@ -900,7 +901,9 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
                   </Avatar>
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2 text-sm">
-                      <span className="font-medium">{item.user?.full_name || "Sistema"}</span>
+                      <span className="font-medium">
+                        {item.user?.full_name || (item as any).author_name || "Sistema"}
+                      </span>
                       <span className="text-muted-foreground">
                         {format(new Date(item.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
                       </span>

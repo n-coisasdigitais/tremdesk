@@ -585,7 +585,7 @@ export default function AcompanharDemanda() {
                   />
                   <div className="mt-3 flex items-center justify-between gap-3">
                     <span className="text-xs text-muted-foreground">{novaMensagem.length}/5000</span>
-                    <Button onClick={enviarMensagem} disabled={enviando || !novaMensagem.trim()}>
+                    <Button onClick={enviarMensagem} disabled={enviando || !novaMensagem.trim() || !autorNome.trim()}>
                       {enviando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                       Enviar mensagem
                     </Button>
