@@ -219,9 +219,17 @@ export const TipTapEditor = ({
     },
   });
 
-  // Update content when prop changes
+  // Update content when prop changes. Quando o conteudo vira nulo/vazio
+  // (ex.: apos enviar um comentario), o editor e limpado de fato.
   useEffect(() => {
-    if (editor && content && JSON.stringify(editor.getJSON()) !== JSON.stringify(content)) {
+    if (!editor) return;
+    if (!content) {
+      if (!editor.isEmpty) {
+        editor.commands.clearContent();
+      }
+      return;
+    }
+    if (JSON.stringify(editor.getJSON()) !== JSON.stringify(content)) {
       editor.commands.setContent(content);
     }
   }, [content, editor]);
