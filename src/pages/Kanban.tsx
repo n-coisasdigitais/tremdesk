@@ -272,7 +272,9 @@ export default function Kanban() {
   const { tickets, loading, updateTicketStatus, fetchTickets } = useTickets();
   const { sortTicketsWithGroups } = useTicketLinks();
   const [newTicketOpen, setNewTicketOpen] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  // Guardamos apenas o id: o card aberto e sempre montado a partir da lista
+  // atualizada, entao status/prazos aparecem na hora depois de salvar.
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [filters, setFilters] = useState<KanbanFiltersState>({
@@ -288,7 +290,7 @@ export default function Kanban() {
     if (ticketId && tickets.length > 0 && !loading) {
       const ticket = tickets.find((t) => t.id === ticketId);
       if (ticket) {
-        setSelectedTicket(ticket);
+        setSelectedTicketId(ticket.id);
         // Clear the URL param after opening
         setSearchParams({});
       }
@@ -395,15 +397,17 @@ export default function Kanban() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
+            {/* Area do Kanban com altura propria: a barra horizontal fica
+                sempre visivel na base e cada coluna rola verticalmente. */}
             <div className="relative -mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden">
-              <div className="overflow-x-auto px-4 sm:px-6 lg:px-8 scrollbar-thin">
-                <div className="inline-flex gap-4 pb-4">
+              <div className="h-[calc(100vh-15rem)] min-h-[420px] overflow-x-auto overflow-y-hidden px-4 sm:px-6 lg:px-8 scrollbar-thin">
+                <div className="inline-flex h-full gap-4 pb-2">
                   {columns.map((status) => (
                     <KanbanColumn
                       key={status}
                       status={status}
                       groupedTickets={getGroupedTicketsByStatus(status)}
-                      onTicketClick={setSelectedTicket}
+                      onTicketClick={(ticket) => setSelectedTicketId(ticket.id)}
                     />
                   ))}
                 </div>
