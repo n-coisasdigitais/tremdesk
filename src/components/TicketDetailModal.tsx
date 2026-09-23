@@ -71,6 +71,7 @@ interface ActivityItem {
   created_at: string;
   user?: Profile;
   content?: any;
+  author_name?: string | null;
   action_type?: string;
   metadata_json?: any;
   status?: string;
@@ -654,6 +655,16 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
                 </Badge>
               )}
 
+              {/* Controle interno: abertura e última atualização */}
+              <Badge variant="outline" className="flex items-center gap-1 text-xs font-normal">
+                <CalendarIcon className="h-3 w-3" />
+                Aberta em {format(new Date(ticket.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+              </Badge>
+              <Badge variant="outline" className="flex items-center gap-1 text-xs font-normal">
+                <Clock className="h-3 w-3" />
+                Atualizada em {format(new Date(ticket.updated_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+              </Badge>
+
               {/* Previsão de conclusão: editável por equipe/admin */}
               {canChangeStatus ? (
                 <Popover>
@@ -900,7 +911,9 @@ export const TicketDetailModal = ({ ticket, open, onOpenChange, onUpdate }: Tick
                   </Avatar>
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2 text-sm">
-                      <span className="font-medium">{item.user?.full_name || "Sistema"}</span>
+                      <span className="font-medium">
+                        {item.user?.full_name || (item as any).author_name || "Sistema"}
+                      </span>
                       <span className="text-muted-foreground">
                         {format(new Date(item.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
                       </span>

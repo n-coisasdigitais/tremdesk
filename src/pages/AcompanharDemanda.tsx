@@ -141,6 +141,30 @@ export default function AcompanharDemanda() {
   const [codigoEnviadoPara, setCodigoEnviadoPara] = useState<string | null>(null);
   const [enviandoCodigo, setEnviandoCodigo] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
+  // Identificacao de quem usa o link publico: fica guardada no navegador
+  // para este token, entao nao e pedida a cada comentario.
+  const storageKey = token ? `acompanhar:autor:${token}` : null;
+  const [autorNome, setAutorNome] = useState("");
+  const [autorEmail, setAutorEmail] = useState("");
+  const [autorConfirmado, setAutorConfirmado] = useState(false);
+  const [editandoAutor, setEditandoAutor] = useState(false);
+
+  useEffect(() => {
+    if (!storageKey) return;
+    try {
+      const salvo = localStorage.getItem(storageKey);
+      if (salvo) {
+        const parsed = JSON.parse(salvo) as { nome?: string; email?: string };
+        if (parsed.nome) {
+          setAutorNome(parsed.nome);
+          setAutorEmail(parsed.email || "");
+          setAutorConfirmado(true);
+        }
+      }
+    } catch {
+      // identificacao invalida no navegador: pede novamente
+    }
+  }, [storageKey]);
 
   const carregarHistorico = useCallback(async () => {
     if (!token) return;
@@ -164,6 +188,11 @@ export default function AcompanharDemanda() {
     if (!error && !data?.error) {
       setChecklist((data?.checklist || []) as ChecklistItemPublico[]);
       setVinculadas((data?.linked || []) as DemandaVinculada[]);
+      const solicitante = data?.solicitante as { nome?: string | null; email?: string | null } | undefined;
+      if (solicitante?.nome) {
+        setAutorNome((atual) => atual || solicitante.nome || "");
+        setAutorEmail((atual) => atual || solicitante.email || "");
+      }
     }
   }, [token]);
 
@@ -244,10 +273,16 @@ export default function AcompanharDemanda() {
 
   const enviarMensagem = async () => {
     if (!token || !novaMensagem.trim()) return;
+    if (!autorNome.trim()) {
+      toast.error("Informe seu nome para enviar a mensagem.");
+      return;
+    }
     setEnviando(true);
-    const { error } = await supabase.rpc("add_ticket_comment_by_token", {
+    const { error } = await supabase.rpc("add_public_ticket_comment", {
       p_token: token,
       p_content: novaMensagem.trim(),
+      p_author_name: autorNome.trim(),
+      p_author_email: autorEmail.trim() || null,
     });
     setEnviando(false);
 
@@ -255,6 +290,11 @@ export default function AcompanharDemanda() {
       toast.error("Não foi possível enviar sua mensagem. Tente novamente.");
       return;
     }
+    if (storageKey) {
+      localStorage.setItem(storageKey, JSON.stringify({ nome: autorNome.trim(), email: autorEmail.trim() }));
+    }
+    setAutorConfirmado(true);
+    setEditandoAutor(false);
     setNovaMensagem("");
     toast.success("Mensagem enviada!");
     await carregarHistorico();
@@ -497,6 +537,44 @@ export default function AcompanharDemanda() {
                 )}
 
                 <div className="border-t pt-4">
+                  {autorConfirmado && !editandoAutor ? (
+                    <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span>
+                        Comentando como <strong className="text-foreground">{autorNome}</strong>
+                      </span>
+                      <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setEditandoAutor(true)}>
+                        alterar
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="mb-3 grid gap-2 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="autor-nome">
+                          Seu nome
+                        </label>
+                        <Input
+                          id="autor-nome"
+                          value={autorNome}
+                          onChange={(event) => setAutorNome(event.target.value)}
+                          placeholder="Como você quer ser identificado"
+                          maxLength={120}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="autor-email">
+                          Seu e-mail (opcional)
+                        </label>
+                        <Input
+                          id="autor-email"
+                          type="email"
+                          value={autorEmail}
+                          onChange={(event) => setAutorEmail(event.target.value)}
+                          placeholder="voce@empresa.com"
+                          maxLength={200}
+                        />
+                      </div>
+                    </div>
+                  )}
                   <Textarea
                     aria-label="Nova mensagem"
                     placeholder="Escreva uma mensagem para a equipe..."
@@ -507,7 +585,7 @@ export default function AcompanharDemanda() {
                   />
                   <div className="mt-3 flex items-center justify-between gap-3">
                     <span className="text-xs text-muted-foreground">{novaMensagem.length}/5000</span>
-                    <Button onClick={enviarMensagem} disabled={enviando || !novaMensagem.trim()}>
+                    <Button onClick={enviarMensagem} disabled={enviando || !novaMensagem.trim() || !autorNome.trim()}>
                       {enviando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                       Enviar mensagem
                     </Button>
