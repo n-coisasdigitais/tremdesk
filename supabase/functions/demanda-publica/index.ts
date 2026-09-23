@@ -197,7 +197,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       const { data: ticket, error: ticketError } = await supabase
         .from("tickets")
-        .select("id")
+        .select("id, solicitante_nome, solicitante_email")
         .eq("token_acompanhamento", body.token)
         .maybeSingle();
 
@@ -231,7 +231,14 @@ const handler = async (req: Request): Promise<Response> => {
         }));
       }
 
-      return json({ checklist: checklist || [], linked });
+      return json({
+        checklist: checklist || [],
+        linked,
+        solicitante: {
+          nome: ticket.solicitante_nome || null,
+          email: ticket.solicitante_email || null,
+        },
+      });
     }
 
     // Envia um codigo de 6 digitos para o e-mail cadastrado na abertura da
