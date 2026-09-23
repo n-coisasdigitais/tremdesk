@@ -1149,6 +1149,8 @@ export type Database = {
       }
       ticket_comments: {
         Row: {
+          author_email: string | null
+          author_name: string | null
           content_json: Json
           created_at: string
           id: string
@@ -1158,6 +1160,8 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          author_email?: string | null
+          author_name?: string | null
           content_json: Json
           created_at?: string
           id?: string
@@ -1167,6 +1171,8 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          author_email?: string | null
+          author_name?: string | null
           content_json?: Json
           created_at?: string
           id?: string
@@ -1455,6 +1461,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_public_ticket_comment: {
+        Args: {
+          p_author_email: string
+          p_author_name: string
+          p_content: string
+          p_token: string
+        }
+        Returns: string
+      }
       add_ticket_comment_by_token: {
         Args: { p_content: string; p_token: string }
         Returns: string
